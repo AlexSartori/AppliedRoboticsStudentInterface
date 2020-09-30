@@ -3,6 +3,9 @@
 
 #include <stdexcept>
 #include <sstream>
+#include <ctime>
+#include <sstream>
+#include <experimental/filesystem>
 namespace student {
 
  void loadImage(cv::Mat& img_out, const std::string& config_folder){  
@@ -10,7 +13,22 @@ namespace student {
  }
 
  void genericImageListener(const cv::Mat& img_in, std::string topic, const std::string& config_folder){
-    throw std::logic_error( "STUDENT FUNCTION - IMAGE LISTENER - NOT CORRECTLY IMPLEMENTED" );
+  	static std::string folderPath;
+    folderPath = config_folder + "/camera_images";
+    bool exist = std::experimental::filesystem::exists(folderPath);
+    if(!exist){
+      std::experimental::filesystem::create_directories(folderPath);
+    }
+
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::ostringstream dateTime;
+    dateTime << std::put_time(&tm, "%d-%m-%Y %H-%M-%S");
+
+    static std::string imgName;
+    imgName = folderPath + "/image" + dateTime.str() + ".jpg";
+    cv::imwrite(imgName, img_in);
+    std::cout << "Saved image " << imgName << std::endl;
   }
 
   bool extrinsicCalib(const cv::Mat& img_in, std::vector<cv::Point3f> object_points, const cv::Mat& camera_matrix, cv::Mat& rvec, cv::Mat& tvec, const std::string& config_folder){
@@ -19,9 +37,7 @@ namespace student {
 
   void imageUndistort(const cv::Mat& img_in, cv::Mat& img_out, 
           const cv::Mat& cam_matrix, const cv::Mat& dist_coeffs, const std::string& config_folder){
-
-    throw std::logic_error( "STUDENT FUNCTION - IMAGE UNDISTORT - NOT IMPLEMENTED" );  
-
+    cv::undistort(img_in, img_out, cam_matrix, dist_coeffs);
   }
 
   void findPlaneTransform(const cv::Mat& cam_matrix, const cv::Mat& rvec, 
@@ -51,4 +67,3 @@ void unwarp(const cv::Mat& img_in, cv::Mat& img_out, const cv::Mat& transf,
 
 
 }
-
