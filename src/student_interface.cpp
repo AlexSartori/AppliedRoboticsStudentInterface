@@ -13,7 +13,7 @@ namespace student {
  }
 
  void genericImageListener(const cv::Mat& img_in, std::string topic, const std::string& config_folder){
-  	static std::string folderPath;
+    static std::string folderPath;
     folderPath = config_folder + "/camera_images";
     bool exist = std::experimental::filesystem::exists(folderPath);
     if(!exist){
@@ -28,7 +28,7 @@ namespace student {
     static std::string imgName;
     imgName = folderPath + "/image" + dateTime.str() + ".jpg";
     cv::imwrite(imgName, img_in);
-    std::cout << "Saved image " << imgName << std::endl;
+    std::cout << "Saved image " << imgName << " w/ topic: " << topic << std::endl;
   }
 
   bool extrinsicCalib(const cv::Mat& img_in, std::vector<cv::Point3f> object_points, const cv::Mat& camera_matrix, cv::Mat& rvec, cv::Mat& tvec, const std::string& config_folder){
