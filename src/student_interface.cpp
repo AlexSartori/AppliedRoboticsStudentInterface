@@ -1,6 +1,9 @@
 #include "student_image_elab_interface.hpp"
 #include "student_planning_interface.hpp"
 
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
+
 #include <stdexcept>
 #include <sstream>
 #include <ctime>
@@ -111,8 +114,104 @@ namespace student {
     cv::warpPerspective(img_in, img_out, transf, img_in.size());   
   }
 
+  void showVictims(const cv::Mat& img_in){
+      cv::Mat hsv_img;
+      cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
+
+      cv::Mat victims_img;
+      cv::inRange(hsv_img, cv::Scalar(45, 50, 0), cv::Scalar(90, 255, 255), victims_img);
+
+      cv::Mat erosion_img;
+      cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8), cv::Point(-1,-1));
+      cv::erode(victims_img, erosion_img, erosion_element); 
+      
+      cv::Mat dilation_img;
+      cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(10, 10), cv::Point(-1,-1));
+      cv::dilate(erosion_img, dilation_img, dilation_element); 
+
+      std::vector<std::vector<cv::Point>> contours, approx_contours;
+      cv::findContours(erosion_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+      for(int i = 0; i < contours.size(); i++){
+        std::vector<cv::Point> approx_curve;
+        cv::approxPolyDP(contours[i], approx_curve, 5, true);
+        approx_contours.push_back(approx_curve);
+      }
+
+      cv::Mat contours_img = img_in.clone();
+      cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+            
+      cv::imshow("Victims", contours_img);
+  }
+
+  void showObstacles(const cv::Mat& img_in){
+      cv::Mat hsv_img;
+      cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
+
+      cv::Mat obst_img, obst_img_1, obst_img_2;
+      cv::inRange(hsv_img, cv::Scalar(163, 40, 40), cv::Scalar(180, 255, 255), obst_img_1);
+      cv::inRange(hsv_img, cv::Scalar(0, 40, 40), cv::Scalar(35, 255, 255), obst_img_2);
+      add(obst_img_1, obst_img_2, obst_img);
+
+      cv::Mat erosion_img;
+      cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(8, 8), cv::Point(-1,-1));
+      cv::erode(obst_img, erosion_img, erosion_element); 
+      
+      cv::Mat dilation_img;
+      cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10), cv::Point(-1,-1));
+      cv::dilate(erosion_img, dilation_img, dilation_element); 
+
+      std::vector<std::vector<cv::Point>> contours, approx_contours;
+      cv::findContours(erosion_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+      for(int i = 0; i < contours.size(); i++){
+        std::vector<cv::Point> approx_curve;
+        cv::approxPolyDP(contours[i], approx_curve, 7, true);
+        approx_contours.push_back(approx_curve);
+      }
+
+      cv::Mat contours_img = img_in.clone();
+      cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+                                            
+      cv::imshow("Obstacles", contours_img);
+  }
+
+  void showGate(const cv::Mat& img_in){
+      cv::Mat hsv_img;
+      cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
+
+      cv::Mat gate_img;
+      cv::inRange(hsv_img, cv::Scalar(80, 66, 33), cv::Scalar(121, 255, 255), gate_img);
+
+      cv::Mat erosion_img;
+      cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(8, 8), cv::Point(-1,-1));
+      cv::erode(gate_img, erosion_img, erosion_element); 
+      
+      cv::Mat dilation_img;
+      cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10), cv::Point(-1,-1));
+      cv::dilate(erosion_img, dilation_img, dilation_element); 
+
+      std::vector<std::vector<cv::Point>> contours, approx_contours;
+      cv::findContours(erosion_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+      for(int i = 0; i < contours.size(); i++){
+        std::vector<cv::Point> approx_curve;
+        cv::approxPolyDP(contours[i], approx_curve, 5, true);
+        approx_contours.push_back(approx_curve);
+      }
+
+      cv::Mat contours_img = img_in.clone();
+      cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+            
+      cv::imshow("Gate", contours_img);
+  } 
+
   bool processMap(const cv::Mat& img_in, const double scale, std::vector<Polygon>& obstacle_list, std::vector<std::pair<int,Polygon>>& victim_list, Polygon& gate, const std::string& config_folder){
-    throw std::logic_error( "STUDENT FUNCTION - PROCESS MAP - NOT IMPLEMENTED" );   
+    showVictims(img_in);
+    showObstacles(img_in);
+    showGate(img_in);
+
+    cv::waitKey(1);
   }
 
   bool findRobot(const cv::Mat& img_in, const double scale, Polygon& triangle, double& x, double& y, double& theta, const std::string& config_folder){
