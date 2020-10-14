@@ -1,8 +1,69 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
+#include "opencv2/core/types.hpp"
+
+#include <tesseract/baseapi.h>
+#include <leptonica/allheaders.h>
+
+#include <stdlib.h>
 
 
 namespace student {
+  std::pair<int, int> getDigitFromRoi(const cv::Mat& roi){
+    cv::Mat gray_roi, bw_roi;
+    cv::cvtColor(roi, gray_roi, cv::COLOR_BGR2GRAY);
+    cv::threshold(gray_roi, bw_roi, 127, 255, cv::THRESH_BINARY);
+        
+    //cv::imshow("digit", bw_roi);
+
+    tesseract::TessBaseAPI* ocr = new tesseract::TessBaseAPI();
+    ocr->Init(NULL, "eng");
+    ocr->SetPageSegMode(tesseract::PSM_SINGLE_CHAR);
+    ocr->SetVariable("tessedit_char_whitelist","0123456789");
+
+    // the following three instructions must be directly consecutive
+    ocr->SetImage(bw_roi.data, bw_roi.cols, bw_roi.rows, bw_roi.channels(), bw_roi.step);
+    char* text = ocr->GetUTF8Text();
+    int conf = ocr->MeanTextConf();
+
+    int number = atoi(text);
+    ocr->End();
+
+    std::pair<int, int> result = {number, conf};
+    return result;
+  }
+
+  int extrapolateVictimNumber(const cv::Mat& roi) {
+    cv::Point2f center(roi.cols/2., roi.rows/2.);
+
+    std::vector<int> results_conf;
+
+    for (int i = 0; i < 10; i++){
+      results_conf.push_back(0);
+    }
+
+    for (int degree = 0; degree <= 360; degree += 30) {
+      cv::Mat r = cv::getRotationMatrix2D(center, degree, 1.0);
+
+      cv::Mat dst, flipped;
+      cv::warpAffine(roi, dst, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
+      cv::flip(dst, flipped, 1); // flip horizontally
+
+      std::pair<int, int> res = getDigitFromRoi(flipped);
+
+      if(res.first != 0) {
+        if(results_conf[res.first] < res.second)
+          results_conf[res.first] = res.second;
+      }
+      //cv::waitKey(0);
+    }
+
+    int max = std::max_element(results_conf.begin(), results_conf.end()) - results_conf.begin();
+    std::cout << "recognised "<< max <<std::endl;
+    //cv::waitKey(0);
+    return max;
+  }
+
   void getVictims(const cv::Mat& img_in, std::vector<std::pair<int, Polygon>>& victim_list){
     cv::Mat hsv_img;
     cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
@@ -21,7 +82,6 @@ namespace student {
     std::vector<std::vector<cv::Point>> contours, approx_contours;
     cv::findContours(erosion_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    int id = 0;
     for(auto& contour: contours){
       std::vector<cv::Point> approx_curve;
       cv::approxPolyDP(contour, approx_curve, 7, true);
@@ -31,13 +91,15 @@ namespace student {
         for (const auto& pt: approx_curve) {
           victim.emplace_back(pt.x, pt.y);
         }
+
+        cv::Rect rectangle = cv::boundingRect(contour);
+        cv::Mat roi = img_in(rectangle);
+        
+        int id = extrapolateVictimNumber(roi);
         victim_list.push_back({
           id, 
           victim
         });
-
-        //TODO: get the id from the image
-        id++;
       }
     }
 

@@ -12,6 +12,13 @@ include_directories(
  include 
  ${OpenCV_INCLUDE_DIRS}
  ${project_interface_INCLUDE_DIRS}
+ /usr/include/leptonica
+ /usr/include/tesseract
+)
+
+link_directories(
+ /usr/include/leptonica
+ /usr/include/tesseract
 )
 
 ## Add executable
@@ -26,8 +33,19 @@ add_library(student SHARED
 
 target_link_libraries(student
   ${OpenCV_LIBRARIES}  
+  -llept -ltesseract -ltiff
 )
 
 target_link_libraries(calibrate
   ${OpenCV_LIBRARIES}  
+)
+
+## COMPILE DEMO EXECUTABLE
+add_executable(general_demo
+  src/demo_shape_detection/general_demo.cpp
+)
+
+target_link_libraries(general_demo
+  ${OpenCV_LIBRARIES}
+  -llept -ltesseract -ltiff
 )
