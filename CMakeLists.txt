@@ -39,13 +39,3 @@ target_link_libraries(student
 target_link_libraries(calibrate
   ${OpenCV_LIBRARIES}  
 )
-
-## COMPILE DEMO EXECUTABLE
-add_executable(general_demo
-  src/demo_shape_detection/general_demo.cpp
-)
-
-target_link_libraries(general_demo
-  ${OpenCV_LIBRARIES}
-  -llept -ltesseract -ltiff
-)
