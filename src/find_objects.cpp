@@ -10,19 +10,13 @@
 
 namespace student {
   std::pair<int, int> getDigitFromRoi(const cv::Mat& roi){
-    cv::Mat gray_roi, bw_roi;
-    cv::cvtColor(roi, gray_roi, cv::COLOR_BGR2GRAY);
-    cv::threshold(gray_roi, bw_roi, 127, 255, cv::THRESH_BINARY);
-        
-    //cv::imshow("digit", bw_roi);
-
     tesseract::TessBaseAPI* ocr = new tesseract::TessBaseAPI();
     ocr->Init(NULL, "eng");
     ocr->SetPageSegMode(tesseract::PSM_SINGLE_CHAR);
     ocr->SetVariable("tessedit_char_whitelist","0123456789");
 
     // the following three instructions must be directly consecutive
-    ocr->SetImage(bw_roi.data, bw_roi.cols, bw_roi.rows, bw_roi.channels(), bw_roi.step);
+    ocr->SetImage(roi.data, roi.cols, roi.rows, roi.channels(), roi.step);
     char* text = ocr->GetUTF8Text();
     int conf = ocr->MeanTextConf();
 
@@ -34,6 +28,9 @@ namespace student {
   }
 
   int extrapolateVictimNumber(const cv::Mat& roi) {
+    cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3), cv::Point(-1,-1));
+    cv::erode(roi, roi, erosion_element);
+
     cv::Point2f center(roi.cols/2., roi.rows/2.);
 
     std::vector<int> results_conf;
@@ -59,7 +56,7 @@ namespace student {
     }
 
     int max = std::max_element(results_conf.begin(), results_conf.end()) - results_conf.begin();
-    std::cout << "recognised "<< max <<std::endl;
+    std::cout << "recognised " << max << std::endl;
     //cv::waitKey(0);
     return max;
   }
@@ -69,7 +66,7 @@ namespace student {
     cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
 
     cv::Mat victims_img;
-    cv::inRange(hsv_img, cv::Scalar(45, 50, 0), cv::Scalar(90, 255, 255), victims_img);
+    cv::inRange(hsv_img, cv::Scalar(45, 50, 26), cv::Scalar(100, 255, 255), victims_img);
 
     cv::Mat erosion_img;
     cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8), cv::Point(-1,-1));
@@ -80,7 +77,7 @@ namespace student {
     cv::dilate(erosion_img, dilation_img, dilation_element); 
 
     std::vector<std::vector<cv::Point>> contours, approx_contours;
-    cv::findContours(erosion_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(dilation_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     for(auto& contour: contours){
       std::vector<cv::Point> approx_curve;
@@ -93,7 +90,18 @@ namespace student {
         }
 
         cv::Rect rectangle = cv::boundingRect(contour);
-        cv::Mat roi = img_in(rectangle);
+        cv::Point2f center;
+        float radius;
+        // get the circle that contains the contour
+        cv::minEnclosingCircle(approx_curve, center, radius);
+        cv::Scalar color = cv::Scalar(255, 255, 255); // white color
+        int diagonal = (int)std::sqrt(std::pow(rectangle.width,2) + std::pow(rectangle.height,2));
+
+        // increase the radius of the circle to fill with black the parts outside the victim's circle
+        for(int i = -3; (int)radius + i <= diagonal / 2; i++)
+          cv::circle(dilation_img, center, (int)radius + i, color, 2);
+
+        cv::Mat roi = dilation_img(rectangle);
         
         int id = extrapolateVictimNumber(roi);
         victim_list.push_back({
@@ -105,7 +113,13 @@ namespace student {
 
     cv::Mat contours_img = img_in.clone();
     cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
-          
+
+    for(auto& victim: victim_list){
+      // print in the image the ID of the victims
+      cv::Point position = cv::Point(victim.second[0].x, victim.second[0].y);
+      cv::putText(contours_img, std::to_string(victim.first),
+                  position, cv::FONT_HERSHEY_DUPLEX, 1.0, CV_RGB(0, 0, 0), 2);
+    }
     cv::imshow("Victims", contours_img);
   }
 
@@ -127,7 +141,7 @@ namespace student {
     cv::dilate(erosion_img, dilation_img, dilation_element); 
 
     std::vector<std::vector<cv::Point>> contours, approx_contours;
-    cv::findContours(erosion_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(dilation_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     for(int i = 0; i < contours.size(); i++){
       std::vector<cv::Point> approx_curve;
@@ -163,7 +177,7 @@ namespace student {
     cv::dilate(erosion_img, dilation_img, dilation_element); 
 
     std::vector<std::vector<cv::Point>> contours, approx_contours;
-    cv::findContours(erosion_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(dilation_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     bool found = false;
     for(int i = 0; i < contours.size() && !found; i++){
