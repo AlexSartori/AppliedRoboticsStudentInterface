@@ -120,14 +120,50 @@ namespace student {
     getObstacles(img_in, obstacle_list);
     bool res = getGate(img_in, gate);
 
-    cv::waitKey(1);
+    // cv::waitKey(1);
     return res;
   }
 
-  bool findRobot(const cv::Mat& img_in, const double scale, Polygon& triangle, double& x, double& y, double& theta, const std::string& config_folder){
-    // blue filter
-    //cv::inRange(hsv_img, cv::Scalar(80, 66, 33), cv::Scalar(121, 255, 255), gate_img);
-    throw std::logic_error( "STUDENT FUNCTION - FIND ROBOT - NOT IMPLEMENTED" );    
+  bool findRobot(const cv::Mat& img_in, const double scale, Polygon& triangle, double& x, double& y, double& theta, const std::string& config_folder){    
+    // Converto RGB to HSV
+    cv::Mat hsv_img;
+    cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
+
+    // Filter with blue mask
+    cv::Mat robot_img;
+    cv::inRange(hsv_img, cv::Scalar(80, 66, 33), cv::Scalar(121, 255, 255), robot_img);
+    
+    // Dilate
+    // cv::Mat dilation_img;
+    // cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10), cv::Point(-1,-1));
+    // cv::dilate(robot_img, dilation_img, dilation_element); 
+
+    // Find contours
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(robot_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    std::cout << "Detected " << contours.size() << " contours" << std::endl;
+
+    std::vector<cv::Point> approx_curve;
+    for(int i = 0; i < contours.size(); i++) {
+      cv::approxPolyDP(contours[i], approx_curve, 8, true);
+      if (approx_curve.size() == 3) {
+        for (const auto& pt: approx_curve)
+          triangle.emplace_back(pt.x, pt.y);
+        break;
+      }
+    }
+    
+    if (triangle.size() != 3) {
+        std::cerr << "Error while detecting robot:polygon has " << triangle.size() << " vertices." << std::endl;
+        return false;
+    }
+    
+    cv::Mat contours_img = img_in.clone();
+    cv::polylines(contours_img, approx_curve, true, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+    cv::imshow("Robot", contours_img);
+    while (cv::waitKey(100) != 'q') ;
+    cv::destroyWindow("Robot");
+    return true;
   }
 
   bool planPath(const Polygon& borders, const std::vector<Polygon>& obstacle_list, const std::vector<std::pair<int,Polygon>>& victim_list, const Polygon& gate, const float x, const float y, const float theta, Path& path){
