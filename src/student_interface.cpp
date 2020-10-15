@@ -10,6 +10,7 @@
 #include <atomic>
 #include <unistd.h>
 #include <sstream>
+#include <cmath>
 #include <experimental/filesystem>
 
 #include "find_objects.cpp"
@@ -133,19 +134,15 @@ namespace student {
     cv::Mat robot_img;
     cv::inRange(hsv_img, cv::Scalar(80, 66, 33), cv::Scalar(121, 255, 255), robot_img);
     
-    // Dilate
-    // cv::Mat dilation_img;
-    // cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10), cv::Point(-1,-1));
-    // cv::dilate(robot_img, dilation_img, dilation_element); 
-
     // Find contours
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(robot_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    std::cout << "Detected " << contours.size() << " contours" << std::endl;
+    std::cout << "Detected " << contours.size() << " contour(s)" << std::endl;
 
+    // Check it is a triangle
     std::vector<cv::Point> approx_curve;
     for(int i = 0; i < contours.size(); i++) {
-      cv::approxPolyDP(contours[i], approx_curve, 8, true);
+      cv::approxPolyDP(contours[i], approx_curve, 20, true);
       if (approx_curve.size() == 3) {
         for (const auto& pt: approx_curve)
           triangle.emplace_back(pt.x, pt.y);
@@ -158,11 +155,38 @@ namespace student {
         return false;
     }
     
+    // Draw robot
     cv::Mat contours_img = img_in.clone();
     cv::polylines(contours_img, approx_curve, true, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
     cv::imshow("Robot", contours_img);
     while (cv::waitKey(100) != 'q') ;
     cv::destroyWindow("Robot");
+    
+    // Calculate baricenter
+    x = 0; y = 0;
+    for (Point p : triangle) {
+        x += p.x/3;
+        y += p.y/3;
+    }
+    x /= scale;
+    y /= scale;
+    
+    // Find P3 to calculate theta
+    double max_dist = 0;
+    Point p3;
+    for (Point p : triangle) {
+        double d = std::pow(p.y-y, 2) + std::pow(p.x-x, 2);
+        d = std::sqrt(d);
+        
+        if (d >= max_dist) {
+            max_dist = d;
+            p3 = p;
+        }
+    }
+    
+    theta = std::atan2(y-p3.y, x-p3.x);
+    
+    std::cout << "Found robot at x=" << x << ", y=" << y << ", theta=" << theta << std::endl;
     return true;
   }
 
