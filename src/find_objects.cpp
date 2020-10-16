@@ -2,34 +2,48 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/core/types.hpp"
 
-#include <tesseract/baseapi.h>
-#include <leptonica/allheaders.h>
-
 #include <stdlib.h>
 
-
 namespace student {
-  std::pair<int, int> getDigitFromRoi(const cv::Mat& roi){
-    tesseract::TessBaseAPI* ocr = new tesseract::TessBaseAPI();
-    ocr->Init(NULL, "eng");
-    ocr->SetPageSegMode(tesseract::PSM_SINGLE_CHAR);
-    ocr->SetVariable("tessedit_char_whitelist","0123456789");
+  std::pair<int, int> getDigitFromRoi(cv::Mat& roi){    
+    // resize the image to be bigger than the template one
+    cv::resize(roi, roi, cv::Size(200, 200));
 
-    // the following three instructions must be directly consecutive
-    ocr->SetImage(roi.data, roi.cols, roi.rows, roi.channels(), roi.step);
-    char* text = ocr->GetUTF8Text();
-    int conf = ocr->MeanTextConf();
+    // Load digits template images
+    std::vector<cv::Mat> templROIs;
+    // TODO: get from somewhere else
+    std::string baseFolder = "/root/workspace/project/";
+    for (int i=0; i<=9; ++i) {
+      templROIs.emplace_back(cv::imread(baseFolder + "number_templates/" + std::to_string(i) + ".png"));
+      if (templROIs[i].empty()) {
+        throw std::runtime_error("Can't load templates of the numbers!");
+      }
+      if(templROIs[i].type() != 0)
+        cv::cvtColor(templROIs[i], templROIs[i], CV_BGR2GRAY);
+    }
 
-    int number = atoi(text);
-    ocr->End();
+    double maxScore = -1;
+    int maxIdx = -1;
+    for (int i = 0; i < templROIs.size(); i++) {
+      cv::Mat result;
+      cv::matchTemplate(roi, templROIs[i], result, cv::TM_CCOEFF);
+      double score;
+      cv::minMaxLoc(result, nullptr, &score); 
+      if (score > maxScore) {
+        maxScore = score;
+        maxIdx = i;
+      }
+    }
 
-    std::pair<int, int> result = {number, conf};
-    return result;
+    return { maxIdx, maxScore };
   }
 
-  int extrapolateVictimNumber(const cv::Mat& roi) {
-    cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3), cv::Point(-1,-1));
-    cv::erode(roi, roi, erosion_element);
+  int extrapolateVictimNumber(cv::Mat& roi) {  
+    // filter the image  
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(4, 4), cv::Point(-1,-1));
+    cv::dilate(roi, roi, kernel);
+    cv::GaussianBlur(roi, roi, cv::Size(3, 3), 2, 2);
+    cv::erode(roi, roi, kernel);
 
     cv::Point2f center(roi.cols/2., roi.rows/2.);
 
@@ -39,25 +53,62 @@ namespace student {
       results_conf.push_back(0);
     }
 
-    for (int degree = 0; degree <= 360; degree += 30) {
+    cv::flip(roi, roi, 1); // flip horizontally
+
+    int minArea = INT_MAX;
+    int minIndex = -1;
+    bool toRotate = false;
+
+    // rotate the ROI to find the position where the rectangle that covers it has minimum area
+    for (int degree = 0; degree < 90; degree += 5) {
+      cv::Mat tmp;
       cv::Mat r = cv::getRotationMatrix2D(center, degree, 1.0);
+      cv::warpAffine(roi, tmp, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
 
-      cv::Mat dst, flipped;
-      cv::warpAffine(roi, dst, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
-      cv::flip(dst, flipped, 1); // flip horizontally
+      cv::Rect rectangle;
+      int area;
 
-      std::pair<int, int> res = getDigitFromRoi(flipped);
+      std::vector<std::vector<cv::Point>> contours;
+      cv::findContours(tmp, contours, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+      // find the contour covering 2/3 of the ROI (to remove wrong contours)
+      for(auto& contour: contours){
+        rectangle = cv::boundingRect(contour);
+        area = rectangle.width * rectangle.height;
+        if(area >= 2./3. * roi.cols * roi.rows)
+          break;
+      }
+      
+      if(area < minArea){
+        minArea = area;
+        minIndex = degree;
+        toRotate = (rectangle.width > rectangle.height);
+      }
+    }
+
+    // take the best rotated ROI
+    cv::Mat r = cv::getRotationMatrix2D(center, minIndex, 1.0);
+    cv::warpAffine(roi, roi, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
+    if(toRotate){ // to have the image vertically
+      r = cv::getRotationMatrix2D(center, 90, 1.0);
+      cv::warpAffine(roi, roi, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
+    }
+    
+    for (int degree = 0; degree < 360; degree += 180) { // rotate the image
+      cv::Mat tmp;
+      r = cv::getRotationMatrix2D(center, degree, 1.0);
+      cv::warpAffine(roi, tmp, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
+    
+      std::pair<int, int> res = getDigitFromRoi(tmp);
 
       if(res.first != 0) {
         if(results_conf[res.first] < res.second)
           results_conf[res.first] = res.second;
       }
-      //cv::waitKey(0);
+      std::cout << res.first << ": " << res.second << std::endl;
     }
 
     int max = std::max_element(results_conf.begin(), results_conf.end()) - results_conf.begin();
     std::cout << "recognised " << max << std::endl;
-    //cv::waitKey(0);
     return max;
   }
 
@@ -68,16 +119,12 @@ namespace student {
     cv::Mat victims_img;
     cv::inRange(hsv_img, cv::Scalar(45, 50, 26), cv::Scalar(100, 255, 255), victims_img);
 
-    cv::Mat erosion_img;
-    cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8), cv::Point(-1,-1));
-    cv::erode(victims_img, erosion_img, erosion_element); 
-    
-    cv::Mat dilation_img;
-    cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(10, 10), cv::Point(-1,-1));
-    cv::dilate(erosion_img, dilation_img, dilation_element); 
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(8, 8), cv::Point(-1,-1));
+    cv::erode(victims_img, victims_img, kernel);
+    cv::dilate(victims_img, victims_img, kernel);
 
     std::vector<std::vector<cv::Point>> contours, approx_contours;
-    cv::findContours(dilation_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(victims_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     for(auto& contour: contours){
       std::vector<cv::Point> approx_curve;
@@ -99,9 +146,9 @@ namespace student {
 
         // increase the radius of the circle to fill with black the parts outside the victim's circle
         for(int i = -3; (int)radius + i <= diagonal / 2; i++)
-          cv::circle(dilation_img, center, (int)radius + i, color, 2);
+          cv::circle(victims_img, center, (int)radius + i, color, 2);
 
-        cv::Mat roi = dilation_img(rectangle);
+        cv::Mat roi = victims_img(rectangle);
         
         int id = extrapolateVictimNumber(roi);
         victim_list.push_back({

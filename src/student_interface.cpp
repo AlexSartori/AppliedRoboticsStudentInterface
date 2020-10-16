@@ -121,7 +121,8 @@ namespace student {
     getObstacles(img_in, obstacle_list);
     bool res = getGate(img_in, gate);
 
-    // cv::waitKey(1);
+    cv::waitKey(100);
+
     return res;
   }
 
