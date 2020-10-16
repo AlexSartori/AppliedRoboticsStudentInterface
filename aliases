@@ -1,6 +1,7 @@
 #!/bin/bash
 
 AR_ROOT=$( cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)
+export AR_ROOT=${AR_ROOT}
 
 # catkin workspace alias
 alias AR_source="source ${AR_ROOT}/ar_environment.sh"

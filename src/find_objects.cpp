@@ -11,10 +11,13 @@ namespace student {
 
     // Load digits template images
     std::vector<cv::Mat> templROIs;
-    // TODO: get from somewhere else
-    std::string baseFolder = "/root/workspace/project/";
+
+    const char* env_root = std::getenv("AR_ROOT");
+    std::string baseFolder(env_root);
+
+    std::cout << "path: " << baseFolder<<std::endl;
     for (int i=0; i<=9; ++i) {
-      templROIs.emplace_back(cv::imread(baseFolder + "number_templates/" + std::to_string(i) + ".png"));
+      templROIs.emplace_back(cv::imread(baseFolder + "/number_templates/" + std::to_string(i) + ".png"));
       if (templROIs[i].empty()) {
         throw std::runtime_error("Can't load templates of the numbers!");
       }
