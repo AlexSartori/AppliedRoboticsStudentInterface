@@ -17,15 +17,52 @@
 
 
 namespace student {
-  void loadImage(cv::Mat& img_out, const std::string& config_folder){  
-    throw std::logic_error( "STUDENT FUNCTION - LOAD IMAGE - NOT IMPLEMENTED" );
+  void loadImage(cv::Mat& img_out, const std::string& config_folder) {
+    std::cout << "Load image - Student implementation" << std::endl;
+    static bool initialized = false;
+    static std::vector<cv::String> img_list; // list of images to load
+    static size_t idx = 0;  // idx of the current img
+    static size_t function_call_counter = 0;  // idx of the current img
+    const static size_t freeze_img_n_step = 30; // hold the current image for n iteration
+    static cv::Mat current_img; // store the image for a period, avoid to load it from file every time
+    std::string path = config_folder + "/camera_images";
+    
+    if (!initialized) {
+      const bool recursive = false;
+      // Load the list of jpg images contained in the config_folder/img_to_load/
+      cv::glob(path + "/*.jpg", img_list, recursive);
+      
+      if (img_list.size() > 0) {
+        initialized = true;
+        idx = 0;
+        current_img = cv::imread(img_list[idx]);
+        function_call_counter = 0;
+      } else {
+        initialized = false;
+      }
+    }
+    
+    if (!initialized) {
+      throw std::logic_error( "Load Image can not find any jpg image in: " +  path);
+      return;
+    }
+    
+    img_out = current_img;
+    function_call_counter++;  
+    
+    // If the function is called more than N times load increment image idx
+    if (function_call_counter > freeze_img_n_step) {
+      function_call_counter = 0;
+      idx = (idx + 1) % img_list.size();    
+      current_img = cv::imread(img_list[idx]);
+    }
   }
 
-  void genericImageListener(const cv::Mat& img_in, std::string topic, const std::string& config_folder){
+  void genericImageListener(const cv::Mat& img_in, std::string topic, const std::string& config_folder) {
     static std::string folderPath;
     folderPath = config_folder + "/camera_images";
     bool exist = std::experimental::filesystem::exists(folderPath);
-    if(!exist){
+    if (!exist) {
       std::experimental::filesystem::create_directories(folderPath);
     }
 
@@ -89,7 +126,7 @@ namespace student {
 
     // Calculate the perspective transformation to apply
     cv::Mat dist_coeffs;
-    dist_coeffs   = (cv::Mat1d(1,4) << 0, 0, 0, 0, 0);
+    dist_coeffs = (cv::Mat1d(1,4) << 0, 0, 0, 0, 0);
     bool ok = cv::solvePnP(object_points, image_points, camera_matrix, dist_coeffs, rvec, tvec);
 
     if (!ok)
