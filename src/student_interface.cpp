@@ -13,7 +13,7 @@
 #include <cmath>
 #include <experimental/filesystem>
 
-#include "find_objects.cpp"
+#include "find_objects.hpp"
 
 
 namespace student {

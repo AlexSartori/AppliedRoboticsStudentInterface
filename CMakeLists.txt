@@ -21,7 +21,9 @@ add_executable(calibrate
 
 ## CREATE EXECUTABLE LIBRARY
 add_library(student SHARED
-   src/student_interface.cpp
+  src/student_interface.cpp
+  src/find_objects.hpp
+  src/find_objects.cpp
 )
 
 target_link_libraries(student

@@ -1,11 +1,8 @@
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/core/types.hpp"
+#include "find_objects.hpp"
 
-#include <stdlib.h>
 
 namespace student {
-  std::pair<int, int> getDigitFromRoi(cv::Mat& roi){    
+  std::pair<int, int> getDigitFromRoi(cv::Mat& roi){
     // resize the image to be bigger than the template one
     cv::resize(roi, roi, cv::Size(200, 200));
 
@@ -15,7 +12,6 @@ namespace student {
     const char* env_root = std::getenv("AR_ROOT");
     std::string baseFolder(env_root);
 
-    std::cout << "path: " << baseFolder<<std::endl;
     for (int i=0; i<=9; ++i) {
       templROIs.emplace_back(cv::imread(baseFolder + "/number_templates/" + std::to_string(i) + ".png"));
       if (templROIs[i].empty()) {
@@ -45,7 +41,7 @@ namespace student {
     // filter the image  
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(4, 4), cv::Point(-1,-1));
     cv::dilate(roi, roi, kernel);
-    cv::GaussianBlur(roi, roi, cv::Size(3, 3), 2, 2);
+    //cv::GaussianBlur(roi, roi, cv::Size(5, 5), 2, 2);
     cv::erode(roi, roi, kernel);
 
     cv::Point2f center(roi.cols/2., roi.rows/2.);
@@ -55,7 +51,6 @@ namespace student {
     for (int i = 0; i < 10; i++){
       results_conf.push_back(0);
     }
-
     cv::flip(roi, roi, 1); // flip horizontally
 
     int minArea = INT_MAX;
@@ -63,7 +58,7 @@ namespace student {
     bool toRotate = false;
 
     // rotate the ROI to find the position where the rectangle that covers it has minimum area
-    for (int degree = 0; degree < 90; degree += 5) {
+    for (int degree = 0; degree < 180; degree += 5) {
       cv::Mat tmp;
       cv::Mat r = cv::getRotationMatrix2D(center, degree, 1.0);
       cv::warpAffine(roi, tmp, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
@@ -72,13 +67,14 @@ namespace student {
       int area;
 
       std::vector<std::vector<cv::Point>> contours;
-      cv::findContours(tmp, contours, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+      cv::findContours(tmp, contours, cv::RETR_CCOMP, cv::CHAIN_APPROX_TC89_L1);
       // find the contour covering 2/3 of the ROI (to remove wrong contours)
       for(auto& contour: contours){
         rectangle = cv::boundingRect(contour);
         area = rectangle.width * rectangle.height;
-        if(area >= 2./3. * roi.cols * roi.rows)
+        if(area >= 1./3. * roi.cols * roi.rows && area < roi.cols * roi.rows){
           break;
+        }
       }
       
       if(area < minArea){
@@ -97,17 +93,19 @@ namespace student {
     }
     
     for (int degree = 0; degree < 360; degree += 180) { // rotate the image
-      cv::Mat tmp;
-      r = cv::getRotationMatrix2D(center, degree, 1.0);
-      cv::warpAffine(roi, tmp, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
-    
-      std::pair<int, int> res = getDigitFromRoi(tmp);
+      for (int i = -5; i <= 10; i++){
+        cv::Mat tmp;
+        r = cv::getRotationMatrix2D(center, degree + i, 1.0);
+        cv::warpAffine(roi, tmp, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
+      
+        std::pair<int, int> res = getDigitFromRoi(tmp);
 
-      if(res.first != 0) {
-        if(results_conf[res.first] < res.second)
-          results_conf[res.first] = res.second;
+        if(res.first != 0) {
+          if(results_conf[res.first] < res.second)
+            results_conf[res.first] = res.second;
+        }
+        std::cout << res.first << ": " << res.second << std::endl;
       }
-      std::cout << res.first << ": " << res.second << std::endl;
     }
 
     int max = std::max_element(results_conf.begin(), results_conf.end()) - results_conf.begin();
@@ -144,7 +142,7 @@ namespace student {
         float radius;
         // get the circle that contains the contour
         cv::minEnclosingCircle(approx_curve, center, radius);
-        cv::Scalar color = cv::Scalar(255, 255, 255); // white color
+        cv::Scalar color = cv::Scalar(255, 255, 255);
         int diagonal = (int)std::sqrt(std::pow(rectangle.width,2) + std::pow(rectangle.height,2));
 
         // increase the radius of the circle to fill with black the parts outside the victim's circle
@@ -231,9 +229,10 @@ namespace student {
 
     bool found = false;
     for(int i = 0; i < contours.size() && !found; i++){
+      double area = cv::contourArea(contours[i]);
       std::vector<cv::Point> approx_curve;
       cv::approxPolyDP(contours[i], approx_curve, 8, true);
-      if (approx_curve.size() == 4){
+      if (approx_curve.size() == 4 && area >= 500){
         approx_contours.push_back(approx_curve);
         for (const auto& pt: approx_curve) {
           gate.emplace_back(pt.x, pt.y);
