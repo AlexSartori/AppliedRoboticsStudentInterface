@@ -41,7 +41,6 @@ namespace student {
     // filter the image  
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(4, 4), cv::Point(-1,-1));
     cv::dilate(roi, roi, kernel);
-    //cv::GaussianBlur(roi, roi, cv::Size(5, 5), 2, 2);
     cv::erode(roi, roi, kernel);
 
     cv::Point2f center(roi.cols/2., roi.rows/2.);
@@ -68,7 +67,7 @@ namespace student {
 
       std::vector<std::vector<cv::Point>> contours;
       cv::findContours(tmp, contours, cv::RETR_CCOMP, cv::CHAIN_APPROX_TC89_L1);
-      // find the contour covering 2/3 of the ROI (to remove wrong contours)
+      // find the contour covering 1/3 of the ROI (to remove wrong contours) and it's not the entire ROI image
       for(auto& contour: contours){
         rectangle = cv::boundingRect(contour);
         area = rectangle.width * rectangle.height;
@@ -93,7 +92,7 @@ namespace student {
     }
     
     for (int degree = 0; degree < 360; degree += 180) { // rotate the image
-      for (int i = -5; i <= 10; i++){
+      for (int i = -10; i <= 10; i++){
         cv::Mat tmp;
         r = cv::getRotationMatrix2D(center, degree + i, 1.0);
         cv::warpAffine(roi, tmp, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255,255,255));
