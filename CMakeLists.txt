@@ -24,6 +24,15 @@ add_library(student SHARED
   src/student_interface.cpp
   src/find_objects.hpp
   src/find_objects.cpp
+  src/planning.hpp
+  src/planning.cpp
+  src/voronoi.hpp
+  src/voronoi.cpp
+  libs/boost/polygon/voronoi.hpp
+  libs/boost/geometry.hpp
+  libs/boost/graph/graph_traits.hpp
+  libs/boost/graph/adjacency_list.hpp
+  libs/boost/graph/dijkstra_shortest_paths.hpp
 )
 
 target_link_libraries(student

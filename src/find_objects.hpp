@@ -11,11 +11,15 @@
 #include <iostream>
 
 namespace student {
-  std::pair<int, int> getDigitFromRoi(cv::Mat& roi);
-  int extrapolateVictimNumber(cv::Mat& roi);
-  void getVictims(const cv::Mat& img_in, std::vector<std::pair<int, Polygon>>& victim_list);
-  void getObstacles(const cv::Mat& img_in, std::vector<Polygon>& obstacle_list);
-  bool getGate(const cv::Mat& img_in, Polygon& gate);
+    std::pair<int, int> getDigitFromRoi(cv::Mat &roi);
+
+    int extrapolateVictimNumber(cv::Mat &roi);
+
+    void getVictims(const cv::Mat &img_in, std::vector <std::pair<int, Polygon>> &victim_list);
+
+    void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list);
+
+    bool getGate(const cv::Mat &img_in, Polygon &gate);
 }
 
 #endif
