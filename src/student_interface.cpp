@@ -198,13 +198,6 @@ namespace student {
             return false;
         }
 
-        // Draw robot
-        //cv::Mat contours_img = img_in.clone();
-        //cv::polylines(contours_img, approx_curve, true, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
-        //cv::imshow("Robot", contours_img);
-        //while (cv::waitKey(100) != 'q') ;
-        //cv::destroyWindow("Robot");
-
         // Calculate baricenter
         x = 0;
         y = 0;
@@ -212,8 +205,6 @@ namespace student {
             x += p.x / 3;
             y += p.y / 3;
         }
-        x /= scale;
-        y /= scale;
 
         // Find P3 to calculate theta
         double max_dist = 0;
@@ -229,6 +220,18 @@ namespace student {
         }
 
         theta = std::atan2(y - p3.y, x - p3.x);
+
+        x /= scale;
+        y /= scale;
+
+        // Draw robot
+        /*cv::Mat contours_img = img_in.clone();
+        cv::polylines(contours_img, approx_curve, true, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+        cv::circle(contours_img, cv::Point(p3.x, p3.y), 5, cv::Scalar(0, 0, 255), CV_FILLED, 8, 0);
+        cv::circle(contours_img, cv::Point(x, y), 5, cv::Scalar(0, 0, 255), CV_FILLED, 8, 0);
+        cv::imshow("Robot", contours_img);
+        while (cv::waitKey(100) != 'q') ;
+        cv::destroyWindow("Robot");*/
 
         std::cout << "Found robot at x=" << x << ", y=" << y << ", theta=" << theta << std::endl;
         return true;
