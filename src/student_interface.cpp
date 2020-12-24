@@ -14,6 +14,7 @@
 
 #include "find_objects.hpp"
 #include "planning.hpp"
+#include "dubins.hpp"
 
 
 namespace student {
@@ -254,12 +255,27 @@ namespace student {
 
         Point robot(x * 500, y * 500);
 
-        bool result = elaborateVoronoi(newBorders, obstacle_list, victim_list, gate, robot, path);
+        bool result = true;// elaborateVoronoi(newBorders, obstacle_list, victim_list, gate, robot, path);
+
+        RobotPosition start(x, y, theta);
+        RobotPosition end(x + 0.6, y + 0.6, theta);
+
+        Dubins d;
+        float s = 0;
+        std::vector<Pose> poses = d.solveDubinsProblem(start, end, 100.);
+
+        for(int i = 0; i < poses.size(); i++){
+            s += poses[i].s;
+            poses[i].s = s;
+            path.points.push_back(poses[i]);
+        }
 
         for (auto p : path.points){
-            p.x /= 500;
-            p.y /= 500;
-            std::cout << p.x << " - " << p.y << std::endl;
+            //p.x /= 500;
+            //p.y /= 500;
+            //p.s /= 500;
+
+            std::cout << p.s << " - x:" << p.x << " - y:" << p.y << " - theta:" << p.theta<< " - k:" << p.kappa << std::endl;
         }
 
         return result;

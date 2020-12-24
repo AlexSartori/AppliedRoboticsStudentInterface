@@ -28,6 +28,8 @@ add_library(student SHARED
   src/planning.cpp
   src/voronoi.hpp
   src/voronoi.cpp
+  src/dubins.hpp
+  src/dubins.cpp
   libs/boost/polygon/voronoi.hpp
   libs/boost/geometry.hpp
   libs/boost/graph/graph_traits.hpp
