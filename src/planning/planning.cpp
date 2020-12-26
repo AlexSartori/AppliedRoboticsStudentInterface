@@ -3,13 +3,13 @@
 namespace student {
     bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                           const std::vector <std::pair<int, Polygon>> &victim_list,
-                          const Polygon &gate, const Point &robot, Path &path) {
+                          const Polygon &gate, const Point &robot, std::vector<Point> &pointPath) {
         std::vector <Polygon> allObjects(obstacle_list);
         for (auto victim : victim_list)
             allObjects.push_back(victim.second);
         allObjects.push_back(gate);
 
-        Point end(400, 400);
+        Point end(400, 450);
 
         auto outPair = getVoronoiGraph(allObjects, borders, robot, end);
         auto graph = outPair.first;
@@ -50,20 +50,16 @@ namespace student {
         }
 
         // now the final path is showed
-        std::vector<vertex_descriptor>::iterator it = tmp_path.begin();
+        std::vector<vertex_descriptor>::reverse_iterator it = tmp_path.rbegin();
         vertex_descriptor v = *it;
         it++;
-        while (it != tmp_path.end()) {
+        while (it != tmp_path.rend()) {
             vertex_descriptor v1 = *it;
             cv::Point cvstart = cv::Point(vertices[v].x(), vertices[v].y());
             cv::Point cvend = cv::Point(vertices[v1].x(), vertices[v1].y());
             cv::line(tmp, cvstart, cvend, cv::Scalar(0, 255, 0), thickness, lineType);
 
-            /* TODO: bugged
-            float deltaX = cvend.x - cvstart.x, deltaY = cvend.y - cvstart.y;
-            float theta = std::atan2(deltaY, deltaX);
-            path.points.emplace_back(0, std::abs(deltaX), std::abs(deltaY), theta, 0);
-             */
+            pointPath.push_back(Point(vertices[v].x()/OBJECTS_SCALE_FACTOR, vertices[v].y()/OBJECTS_SCALE_FACTOR));
 
             ++it;
             v = v1;
@@ -72,9 +68,10 @@ namespace student {
         cv::circle(tmp, cv::Point(robot.x, robot.y), 5, cv::Scalar(255, 0, 0), CV_FILLED, 8, 0);
         cv::circle(tmp, cv::Point(end.x, end.y), 5, cv::Scalar(0, 255, 0), CV_FILLED, 8, 0);
 
-        //cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
-        //cv::imshow("Path Voronoi", tmp);
-        //cv::waitKey(0);
+        /*
+        cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
+        cv::imshow("Path Voronoi", tmp);
+        cv::waitKey(0);*/
 
         return true;
     }

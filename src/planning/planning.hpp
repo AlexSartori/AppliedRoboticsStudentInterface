@@ -22,10 +22,12 @@
 #include <iostream>
 #include <algorithm>
 
+#define OBJECTS_SCALE_FACTOR 400.0  //TODO: check correctness
+
 namespace student {
     bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                           const std::vector <std::pair<int, Polygon>> &victim_list,
-                          const Polygon &gate, const Point &robot, Path &path);
+                          const Polygon &gate, const Point &robot, std::vector<Point> &pointPath);
 } // namespace student
 
 #endif

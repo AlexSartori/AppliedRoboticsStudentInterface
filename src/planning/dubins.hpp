@@ -4,7 +4,7 @@
 #include <vector>
 #include <cfloat>
 #include <cmath>
-#include<iostream>
+#include <iostream>
 #include <sstream>
 
 #include "utils.hpp"
@@ -15,6 +15,9 @@ namespace student {
 
         RobotPosition(float x, float y, float theta) :
                 x(x), y(y), theta(theta) {}
+
+        RobotPosition(Point p, float theta) :
+                RobotPosition(p.x, p.y, theta) {}
 
         RobotPosition() :
                 RobotPosition(0, 0, 0) {}
@@ -80,7 +83,7 @@ namespace student {
         std::vector <Pose> sampleDubinsArc(const Pose &pose);
 
     public:
-        std::vector <Pose> solveDubinsProblem(const RobotPosition &start, const RobotPosition &end, double kmax);
+        std::vector <Pose> solveDubinsProblem(const RobotPosition &start, const RobotPosition &end, double kmax, float &minLength);
     };
 
     float sinc(float x);

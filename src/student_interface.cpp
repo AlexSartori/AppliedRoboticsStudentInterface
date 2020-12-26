@@ -13,8 +13,8 @@
 #include <experimental/filesystem>
 
 #include "find_objects.hpp"
-#include "planning.hpp"
-#include "dubins.hpp"
+#include "planning/planning.hpp"
+#include "planning/dubins_multipoint.hpp"
 
 
 namespace student {
@@ -244,37 +244,23 @@ namespace student {
                   Path &path,
                   const std::string &config_folder) {
 
-        // TODO. be sure that the scale of 500 is correct and add a global const for that
         Polygon newBorders;
         for (int i = 0; i < borders.size(); i++) {
             Point p(borders[i]);
-            p.x *= 500;
-            p.y *= 500;
+            p.x *= OBJECTS_SCALE_FACTOR;
+            p.y *= OBJECTS_SCALE_FACTOR;
             newBorders.push_back(p);
         }
 
-        Point robot(x * 500, y * 500);
+        Point robot(x * OBJECTS_SCALE_FACTOR, y * OBJECTS_SCALE_FACTOR);
 
-        bool result = true;// elaborateVoronoi(newBorders, obstacle_list, victim_list, gate, robot, path);
+        std::vector<Point> pointPath;
+        bool result = elaborateVoronoi(newBorders, obstacle_list, victim_list, gate, robot, pointPath);
 
-        RobotPosition start(x, y, theta);
-        RobotPosition end(x + 0.6, y + 0.6, theta);
-
-        Dubins d;
-        float s = 0;
-        std::vector<Pose> poses = d.solveDubinsProblem(start, end, 100.);
-
-        for(int i = 0; i < poses.size(); i++){
-            s += poses[i].s;
-            poses[i].s = s;
-            path.points.push_back(poses[i]);
-        }
+        DubinsMultipoint* dp = new DubinsMultipoint(30, theta, 10.);
+        dp->getShortestPath(pointPath, path);
 
         for (auto p : path.points){
-            //p.x /= 500;
-            //p.y /= 500;
-            //p.s /= 500;
-
             std::cout << p.s << " - x:" << p.x << " - y:" << p.y << " - theta:" << p.theta<< " - k:" << p.kappa << std::endl;
         }
 

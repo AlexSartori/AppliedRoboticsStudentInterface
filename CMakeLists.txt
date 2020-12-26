@@ -24,12 +24,14 @@ add_library(student SHARED
   src/student_interface.cpp
   src/find_objects.hpp
   src/find_objects.cpp
-  src/planning.hpp
-  src/planning.cpp
-  src/voronoi.hpp
-  src/voronoi.cpp
-  src/dubins.hpp
-  src/dubins.cpp
+  src/planning/planning.hpp
+  src/planning/planning.cpp
+  src/planning/voronoi.hpp
+  src/planning/voronoi.cpp
+  src/planning/dubins.hpp
+  src/planning/dubins.cpp
+  src/planning/dubins_multipoint.cpp
+  src/planning/dubins_multipoint.hpp
   libs/boost/polygon/voronoi.hpp
   libs/boost/geometry.hpp
   libs/boost/graph/graph_traits.hpp

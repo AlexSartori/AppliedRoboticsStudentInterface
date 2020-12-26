@@ -16,7 +16,7 @@ namespace student {
         return par;
     }
 
-    vector <Pose> Dubins::solveDubinsProblem(const RobotPosition &start, const RobotPosition &end, double kmax) {
+    vector <Pose> Dubins::solveDubinsProblem(const RobotPosition &start, const RobotPosition &end, double kmax, float &minLength) {
         DubinsParams par = getDubinsParams(start, end, kmax);
 
         DubinsCase* cases[] = {
@@ -30,7 +30,7 @@ namespace student {
 
         DubinsResult bestResult;
         DubinsCase* bestCase;
-        float minLength = FLT_MAX;
+        minLength = FLT_MAX;
         for (auto dubCase : cases) {
             auto res = dubCase->solve(par, kmax);
             float s = res.getSum();
@@ -78,10 +78,6 @@ namespace student {
         RobotPosition a2Final = getCircLine(a2);
 
         Pose a3(res.s3, a2Final.x, a2Final.y, a2Final.theta, dubCase.k3);
-
-        cout << "s1:" << res.s1<<" x:"<<a1.x << " y:"<<a1.y << " theta:"<<a1.theta << " k:"<<a1.kappa << endl;
-        cout << "s2:" << res.s2<<" x:"<<a2.x << " y:"<<a2.y << " theta:"<<a2.theta << " k:"<<a2.kappa<< endl;
-        cout << "s3:" << res.s3<<" x:"<<a3.x << " y:"<<a3.y << " theta:"<<a3.theta << " k:"<<a3.kappa<< endl;
 
         poses.push_back(a1);
         poses.push_back(a2);
