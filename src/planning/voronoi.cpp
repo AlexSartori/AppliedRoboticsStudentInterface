@@ -7,15 +7,18 @@ namespace student {
     std::vector <VorSegment> mapPolygonsToVoronoiSegments(const std::vector <Polygon> &obstaclesAndBorders) {
         std::vector <VorSegment> segments;
         for (const Polygon &obstacle : obstaclesAndBorders) {
-            VorPoint start = VorPoint(obstacle[0]);
+            if(obstacle.size() == 0)
+                continue;
+
+            VorPoint start(obstacle[0]);
             for (int i = 1; i < obstacle.size(); i++) {
-                const VorPoint end = VorPoint(obstacle[i]);
+                VorPoint end(obstacle[i]);
                 segments.emplace_back(start.x, start.y, end.x, end.y);
                 start = end;
             }
 
             // Add last point to close the polygon
-            const VorPoint end = VorPoint(obstacle[0]);
+            VorPoint end(obstacle[0]);
             segments.emplace_back(start.x, start.y, end.x, end.y);
         }
         return segments;
@@ -76,10 +79,52 @@ namespace student {
         vertices.push_back(bp::voronoi_vertex<double>(start.x, start.y));
         vertices.push_back(bp::voronoi_vertex<double>(end.x, end.y));
 
+
+        cv::Mat tmp(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
+        cv::Mat tmpPrim(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
+        int thickness = 2;
+        int lineType = cv::LINE_8;
+
+        for (auto it = vd.edges().begin(); it != vd.edges().end(); ++it) {
+            if (it->vertex0() && it->vertex1()){
+                cv::Point cvstart = cv::Point(it->vertex0()->x(), it->vertex0()->y());
+                cv::Point cvend = cv::Point(it->vertex1()->x(), it->vertex1()->y());
+                cv::line(tmp, cvstart, cvend, cv::Scalar(0, 255, 0), thickness, lineType);
+                if(it->is_primary()){
+                    cv::line(tmpPrim, cvstart, cvend, cv::Scalar(0, 255, 0), thickness, lineType);
+                }
+            }
+        }
+
+        cv::circle(tmp, cv::Point(start.x, start.y), 5, cv::Scalar(255, 0, 0), CV_FILLED, 8, 0);
+        cv::circle(tmp, cv::Point(end.x, end.y), 5, cv::Scalar(0, 255, 0), CV_FILLED, 8, 0);
+
+        auto pathImg = "/root/workspace/Voronoi.png";
+        auto pathImgPrim = "/root/workspace/Voronoi_prim.png";
+        //cv::imwrite(pathImg, tmp);
+        //cv::imwrite(pathImgPrim, tmpPrim);
+
+        //std::cout << "img saved at "<<pathImg << std::endl;
+        /*cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
+        cv::imshow("Path Voronoi", tmp);
+        cv::waitKey(0);*/
+
+
         UndirectedGraph g;
 
         point_type_def startPoint(start.x, start.y);
         point_type_def endPoint(end.x, end.y);
+
+        for (auto it = vd.edges().begin(); it != vd.edges().end(); ++it) {
+            if (it->vertex0() && it->vertex1()){
+                if (!isSegmentInFigure(*it->vertex0(), *it->vertex1(), obstacles)) {
+                    auto firstIdx = findVertexIndex(vertices, it->vertex0()->x(), it->vertex0()->y());
+                    auto secondIdx = findVertexIndex(vertices, it->vertex1()->x(), it->vertex1()->y());
+
+                    boost::add_edge(firstIdx, secondIdx, computeDistance(vertices, firstIdx, secondIdx), g);
+                }
+            }
+        }
 
         auto startIdx = findVertexIndex(vertices, start.x, start.y);
         auto endIdx = findVertexIndex(vertices, end.x, end.y);
@@ -93,14 +138,7 @@ namespace student {
             bool first = true;
 
             do {
-                if (edge->is_primary() && edge->vertex0() && edge->vertex1()) {
-                    if (!isSegmentInFigure(*edge->vertex0(), *edge->vertex1(), obstacles)) {
-                        auto firstIdx = findVertexIndex(vertices, edge->vertex0()->x(), edge->vertex0()->y());
-                        auto secondIdx = findVertexIndex(vertices, edge->vertex1()->x(), edge->vertex1()->y());
-
-                        boost::add_edge(firstIdx, secondIdx, computeDistance(vertices, firstIdx, secondIdx), g);
-                    }
-
+                if (edge->vertex0() && edge->vertex1()) { //edge->is_primary() &&
                     point_type_def p(edge->vertex0()->x(), edge->vertex0()->y());
                     bg::append(poly.outer(), p);
 
@@ -114,19 +152,21 @@ namespace student {
 
             bg::append(poly.outer(), firstPoint);
 
-            bool isInStart = bg::within(startPoint, poly);
-            bool isInEnd = bg::within(endPoint, poly);
+            if(poly.outer().size() > 2) {
+                bool isInStart = bg::within(startPoint, poly);
+                bool isInEnd = bg::within(endPoint, poly);
 
-            if (isInStart || isInEnd) {
-                for (auto it = boost::begin(bg::exterior_ring(poly)); it != boost::end(bg::exterior_ring(poly)); ++it) {
-                    double x = bg::get<0>(*it);
-                    double y = bg::get<1>(*it);
+                if (isInStart || isInEnd) {
+                    for (auto it = boost::begin(bg::exterior_ring(poly)); it != boost::end(bg::exterior_ring(poly)); ++it) {
+                        double x = bg::get<0>(*it);
+                        double y = bg::get<1>(*it);
 
-                    auto firstIdx = findVertexIndex(vertices, x, y);
-                    if (isInStart)
-                        boost::add_edge(firstIdx, startIdx, computeDistance(vertices, firstIdx, startIdx), g);
-                    else if (isInEnd)
-                        boost::add_edge(firstIdx, endIdx, computeDistance(vertices, firstIdx, endIdx), g);
+                        auto firstIdx = findVertexIndex(vertices, x, y);
+                        if (isInStart)
+                            boost::add_edge(firstIdx, startIdx, computeDistance(vertices, firstIdx, startIdx), g);
+                        if (isInEnd)
+                            boost::add_edge(firstIdx, endIdx, computeDistance(vertices, firstIdx, endIdx), g);
+                    }
                 }
             }
         }

@@ -257,7 +257,9 @@ namespace student {
         std::vector<Point> pointPath;
         bool result = elaborateVoronoi(newBorders, obstacle_list, victim_list, gate, robot, pointPath);
 
-        DubinsMultipoint* dp = new DubinsMultipoint(30, theta, 10.);
+        std::cout << "Found a path with " << pointPath.size() << " points" << std::endl;
+
+        DubinsMultipoint* dp = new DubinsMultipoint(10, theta, 10.);
         dp->getShortestPath(pointPath, path);
 
         for (auto p : path.points){

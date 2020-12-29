@@ -21,10 +21,22 @@
 #include <stdlib.h>
 #include <iostream>
 #include <algorithm>
+#include <vector>
 
-#define OBJECTS_SCALE_FACTOR 400.0  //TODO: check correctness
+#define OBJECTS_SCALE_FACTOR 500.0  //TODO: check correctness
+
+
+inline bool operator==(const Point &a, const Point &b)
+{
+    return a.x == b.x && a.y == b.y;
+}
 
 namespace student {
+    namespace bg = boost::geometry;
+
+    typedef bg::model::d2::point_xy<double> point_type_def;
+    typedef bg::model::polygon <point_type_def> polygon_type_def;
+
     bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                           const std::vector <std::pair<int, Polygon>> &victim_list,
                           const Polygon &gate, const Point &robot, std::vector<Point> &pointPath);
