@@ -59,34 +59,27 @@ namespace student {
         return false;
     }
 
-    std::pair <UndirectedGraph, std::vector<bp::voronoi_vertex < double>>>
+    Polygon createPolygonAroundPoint(const Point &p) {
+        //TODO: change polygons using more edges
 
-    getVoronoiGraph(const std::vector <Polygon> &obstacles, const Polygon &borders, const Point start,
-                    const Point end) {
-        std::vector <VorPoint> newPoints;
-        newPoints.push_back(VorPoint(start));
-        newPoints.push_back(VorPoint(end));
+        const int length = 20;
+        Polygon poly;
+        poly.emplace_back(p.x + length, p.y - length);
+        poly.emplace_back(p.x + length, p.y + length);
+        poly.emplace_back(p.x - length, p.y + length);
+        poly.emplace_back(p.x - length, p.y - length);
 
-        std::vector <Polygon> obstaclesAndBorders(obstacles);
-        obstaclesAndBorders.push_back(borders);
+        return poly;
+    }
 
-        std::vector <VorSegment> segments = mapPolygonsToVoronoiSegments(obstaclesAndBorders);
-
-        voronoi_diagram<double> vd;
-        construct_voronoi(newPoints.begin(), newPoints.end(), segments.begin(), segments.end(), &vd);
-
-        auto vertices = vd.vertices();
-        vertices.push_back(bp::voronoi_vertex<double>(start.x, start.y));
-        vertices.push_back(bp::voronoi_vertex<double>(end.x, end.y));
-
-
+    void drawVoronoiImage(const voronoi_diagram<double> &vd, const Point &start, const Point &end) {
         cv::Mat tmp(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
         cv::Mat tmpPrim(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
         int thickness = 2;
         int lineType = cv::LINE_8;
 
         for (auto it = vd.edges().begin(); it != vd.edges().end(); ++it) {
-            if (it->vertex0() && it->vertex1()){
+            if (it->vertex0() && it->vertex1()) {
                 cv::Point cvstart = cv::Point(it->vertex0()->x(), it->vertex0()->y());
                 cv::Point cvend = cv::Point(it->vertex1()->x(), it->vertex1()->y());
                 cv::line(tmp, cvstart, cvend, cv::Scalar(0, 255, 0), thickness, lineType);
@@ -108,12 +101,44 @@ namespace student {
         /*cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
         cv::imshow("Path Voronoi", tmp);
         cv::waitKey(0);*/
+    }
 
+    bool isTheSamePoint(const bp::voronoi_vertex<double> &a, const point_type_def & b, const int tolerance) {
+        return ((a.x() < b.x() + tolerance && a.x() > b.x() - tolerance) &&
+                (a.y() < b.y() + tolerance && a.y() > b.y() - tolerance));
+    }
+
+    std::pair <UndirectedGraph, std::vector<bp::voronoi_vertex < double>>>
+
+    getVoronoiGraph(const std::vector <Polygon> &obstacles, const Polygon &borders, const Point start,
+                    const Point end) {
+        std::vector <VorPoint> newPoints;
+
+        std::vector <Polygon> obstaclesAndBorders(obstacles);
+        obstaclesAndBorders.push_back(borders);
+        // for the voronoi construction use even some polygons constructed around the target points
+        obstaclesAndBorders.push_back(createPolygonAroundPoint(start));
+        obstaclesAndBorders.push_back(createPolygonAroundPoint(end));
+
+        std::vector <VorSegment> segments = mapPolygonsToVoronoiSegments(obstaclesAndBorders);
+
+        voronoi_diagram<double> vd;
+        construct_voronoi(newPoints.begin(), newPoints.end(), segments.begin(), segments.end(), &vd);
+
+        auto vertices = vd.vertices();
+        // add the target points as vertices for the future graph
+        vertices.push_back(bp::voronoi_vertex<double>(start.x, start.y));
+        vertices.push_back(bp::voronoi_vertex<double>(end.x, end.y));
+
+        drawVoronoiImage(vd, start, end);
 
         UndirectedGraph g;
 
         point_type_def startPoint(start.x, start.y);
         point_type_def endPoint(end.x, end.y);
+
+        auto startIdx = findVertexIndex(vertices, start.x, start.y);
+        auto endIdx = findVertexIndex(vertices, end.x, end.y);
 
         for (auto it = vd.edges().begin(); it != vd.edges().end(); ++it) {
             if (it->vertex0() && it->vertex1()){
@@ -121,56 +146,22 @@ namespace student {
                     auto firstIdx = findVertexIndex(vertices, it->vertex0()->x(), it->vertex0()->y());
                     auto secondIdx = findVertexIndex(vertices, it->vertex1()->x(), it->vertex1()->y());
 
+                    // map the center of the previous constructed polygons as the target points (close enough points)
+                    const int tolerance = 2;
+                    if(isTheSamePoint(*it->vertex0(), startPoint, tolerance))
+                        firstIdx = startIdx;
+                    if(isTheSamePoint(*it->vertex1(), startPoint, tolerance))
+                        secondIdx = startIdx;
+                    if(isTheSamePoint(*it->vertex0(), endPoint, tolerance))
+                        firstIdx = endIdx;
+                    if(isTheSamePoint(*it->vertex1(), endPoint, tolerance))
+                        secondIdx = endIdx;
+
                     boost::add_edge(firstIdx, secondIdx, computeDistance(vertices, firstIdx, secondIdx), g);
-                }
-            }
-        }
-
-        auto startIdx = findVertexIndex(vertices, start.x, start.y);
-        auto endIdx = findVertexIndex(vertices, end.x, end.y);
-        for (voronoi_diagram<double>::const_cell_iterator it = vd.cells().begin();
-             it != vd.cells().end(); ++it) {
-            const voronoi_diagram<double>::cell_type &cell = *it;
-            const voronoi_diagram<double>::edge_type *edge = cell.incident_edge();
-
-            polygon_type_def poly;
-            point_type_def firstPoint;
-            bool first = true;
-
-            do {
-                if (edge->vertex0() && edge->vertex1()) { //edge->is_primary() &&
-                    point_type_def p(edge->vertex0()->x(), edge->vertex0()->y());
-                    bg::append(poly.outer(), p);
-
-                    if (first == true) {
-                        firstPoint = p;
-                        first = false;
-                    }
-                }
-                edge = edge->next();
-            } while (edge != cell.incident_edge());
-
-            bg::append(poly.outer(), firstPoint);
-
-            if(poly.outer().size() > 2) {
-                bool isInStart = bg::within(startPoint, poly);
-                bool isInEnd = bg::within(endPoint, poly);
-
-                if (isInStart || isInEnd) {
-                    for (auto it = boost::begin(bg::exterior_ring(poly)); it != boost::end(bg::exterior_ring(poly)); ++it) {
-                        double x = bg::get<0>(*it);
-                        double y = bg::get<1>(*it);
-
-                        auto firstIdx = findVertexIndex(vertices, x, y);
-                        if (isInStart)
-                            boost::add_edge(firstIdx, startIdx, computeDistance(vertices, firstIdx, startIdx), g);
-                        if (isInEnd)
-                            boost::add_edge(firstIdx, endIdx, computeDistance(vertices, firstIdx, endIdx), g);
-                    }
                 }
             }
         }
 
         return std::make_pair(g, vertices);
     }
-} // namespace student
+}
