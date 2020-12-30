@@ -159,9 +159,9 @@ namespace student {
     bool processMap(const cv::Mat &img_in, const double scale, std::vector <Polygon> &obstacle_list,
                     std::vector <std::pair<int, Polygon>> &victim_list, Polygon &gate,
                     const std::string &config_folder) {
-        getVictims(img_in, victim_list);
-        getObstacles(img_in, obstacle_list);
-        bool res = getGate(img_in, gate);
+        getVictims(img_in, victim_list, scale);
+        getObstacles(img_in, obstacle_list, scale);
+        bool res = getGate(img_in, gate, scale);
 
         cv::waitKey(100);
 
@@ -244,22 +244,28 @@ namespace student {
                   Path &path,
                   const std::string &config_folder) {
 
-        Polygon newBorders;
-        for (int i = 0; i < borders.size(); i++) {
-            Point p(borders[i]);
-            p.x *= OBJECTS_SCALE_FACTOR;
-            p.y *= OBJECTS_SCALE_FACTOR;
-            newBorders.push_back(p);
-        }
+        Polygon newBorders = scaleUpPolygon(borders);
+        Polygon newGate = scaleUpPolygon(gate);
+
+        std::vector <Polygon> newObstacles;
+        for(auto &obst : obstacle_list)
+            newObstacles.push_back(scaleUpPolygon(obst));
+
+        std::vector <std::pair<int, Polygon>> newVictims;
+        for(auto &vict : victim_list)
+            newVictims.push_back({
+                vict.first,
+                scaleUpPolygon(vict.second)
+            });
 
         Point robot(x * OBJECTS_SCALE_FACTOR, y * OBJECTS_SCALE_FACTOR);
 
         std::vector<Point> pointPath;
-        bool result = elaborateVoronoi(newBorders, obstacle_list, victim_list, gate, robot, pointPath);
+        bool result = elaborateVoronoi(newBorders, newObstacles, newVictims, newGate, robot, pointPath);
 
         std::cout << "Found a path with " << pointPath.size() << " points" << std::endl;
 
-        DubinsMultipoint* dp = new DubinsMultipoint(10, theta, 10.);
+        DubinsMultipoint* dp = new DubinsMultipoint(30, theta, 50.);
         dp->getShortestPath(pointPath, path);
 
         for (auto p : path.points){

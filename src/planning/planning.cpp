@@ -5,6 +5,61 @@ namespace student {
         return (struct1.first < struct2.first);
     }
 
+    Polygon scaleUpPolygon(const Polygon &poly) {
+        Polygon newPoly;
+        for (int i = 0; i < poly.size(); i++) {
+            Point p(poly[i]);
+            p.x *= OBJECTS_SCALE_FACTOR;
+            p.y *= OBJECTS_SCALE_FACTOR;
+            newPoly.push_back(p);
+        }
+        return newPoly;
+    }
+
+    polygon_type_def convertPolygonToBoost(const Polygon &input) {
+        polygon_type_def poly;
+        point_type_def firstPoint;
+
+        for(auto &v : input){
+            point_type_def tmpP(v.x, v.y);
+            bg::append(poly.outer(), tmpP);
+        }
+        point_type_def tmpP(input[0].x, input[0].y);
+        bg::append(poly.outer(), tmpP);
+
+        return poly;
+    }
+
+    void drawGraphImage(const UndirectedGraph &graph, const std::vector<bp::voronoi_vertex<double>> &vertices,
+                        const Point &currPosition, const Point &targetPoint) {
+        // let's draw the result
+        cv::Mat tmp(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
+        int thickness = 2;
+        int lineType = cv::LINE_8;
+
+        std::pair <edge_iterator, edge_iterator> edgePair;
+        for (edgePair = edges(graph); edgePair.first != edgePair.second; ++edgePair.first) {
+            auto a = vertices[source(*edgePair.first, graph)];
+            auto b = vertices[target(*edgePair.first, graph)];
+
+            cv::Point cvstart = cv::Point(a.x(), a.y());
+            cv::Point cvend = cv::Point(b.x(), b.y());
+            cv::line(tmp, cvstart, cvend, cv::Scalar(0, 0, 0), thickness, lineType);
+        }
+
+        cv::circle(tmp, cv::Point(currPosition.x, currPosition.y), 5, cv::Scalar(255, 0, 0), CV_FILLED, 8, 0);
+        cv::circle(tmp, cv::Point(targetPoint.x, targetPoint.y), 5, cv::Scalar(0, 255, 0), CV_FILLED, 8, 0);
+
+        auto pathImg = "/root/workspace/Graph.png";
+        //cv::imwrite(pathImg, tmp);
+        //std::cout << "img saved at "<<pathImg << std::endl;
+
+        /*
+        cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
+        cv::imshow("Path Voronoi", tmp);
+        cv::waitKey(0);*/
+    }
+
     bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                           const std::vector <std::pair<int, Polygon>> &victim_list,
                           const Polygon &gate, const Point &robot, std::vector<Point> &pointPath) {

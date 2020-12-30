@@ -112,7 +112,7 @@ namespace student {
         return max;
     }
 
-    void getVictims(const cv::Mat &img_in, std::vector <std::pair<int, Polygon>> &victim_list) {
+    void getVictims(const cv::Mat &img_in, std::vector <std::pair<int, Polygon>> &victim_list, const double scale) {
         cv::Mat hsv_img;
         cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
 
@@ -133,7 +133,7 @@ namespace student {
                 approx_contours.push_back(approx_curve);
                 Polygon victim;
                 for (const auto &pt: approx_curve) {
-                    victim.emplace_back(pt.x, pt.y);
+                    victim.emplace_back(pt.x / scale, pt.y / scale);
                 }
 
                 cv::Rect rectangle = cv::boundingRect(contour);
@@ -170,7 +170,7 @@ namespace student {
         //cv::imshow("Victims", contours_img);
     }
 
-    void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list) {
+    void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list, const double scale) {
         cv::Mat hsv_img;
         cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
 
@@ -197,7 +197,7 @@ namespace student {
 
             Polygon obstacle;
             for (const auto &pt: approx_curve) {
-                obstacle.emplace_back(pt.x, pt.y);
+                obstacle.emplace_back(pt.x / scale, pt.y / scale);
             }
             obstacle_list.push_back(obstacle);
         }
@@ -208,7 +208,7 @@ namespace student {
         //cv::imshow("Obstacles", contours_img);
     }
 
-    bool getGate(const cv::Mat &img_in, Polygon &gate) {
+    bool getGate(const cv::Mat &img_in, Polygon &gate, const double scale) {
         cv::Mat hsv_img;
         cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
 
@@ -234,7 +234,7 @@ namespace student {
             if (approx_curve.size() == 4 && area >= 500) {
                 approx_contours.push_back(approx_curve);
                 for (const auto &pt: approx_curve) {
-                    gate.emplace_back(pt.x, pt.y);
+                    gate.emplace_back(pt.x / scale, pt.y / scale);
                 }
                 found = true;
             }

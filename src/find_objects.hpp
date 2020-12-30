@@ -15,11 +15,11 @@ namespace student {
 
     int extrapolateVictimNumber(cv::Mat &roi);
 
-    void getVictims(const cv::Mat &img_in, std::vector <std::pair<int, Polygon>> &victim_list);
+    void getVictims(const cv::Mat &img_in, std::vector <std::pair<int, Polygon>> &victim_list, const double scale);
 
-    void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list);
+    void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list, const double scale);
 
-    bool getGate(const cv::Mat &img_in, Polygon &gate);
+    bool getGate(const cv::Mat &img_in, Polygon &gate, const double scale);
 }
 
 #endif
