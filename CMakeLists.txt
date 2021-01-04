@@ -37,6 +37,7 @@ add_library(student SHARED
   libs/boost/graph/graph_traits.hpp
   libs/boost/graph/adjacency_list.hpp
   libs/boost/graph/dijkstra_shortest_paths.hpp
+  libs/clipper/clipper.cpp
   libs/clipper/clipper.hpp
 )
 

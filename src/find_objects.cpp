@@ -1,6 +1,5 @@
 #include "find_objects.hpp"
 
-
 namespace student {
     std::pair<int, int> getDigitFromRoi(cv::Mat &roi) {
         // resize the image to be bigger than the template one
@@ -169,6 +168,22 @@ namespace student {
         }
         //cv::imshow("Victims", contours_img);
     }
+    
+    ClipperLib::Path expandPolygon(std::vector<cv::Point> polygon, Polygon result) {
+        ClipperLib::Path p;
+        ClipperLib::Paths solution;
+        
+        for (cv::Point pt : polygon)
+            p << ClipperLib::IntPoint(pt.x, pt.y);
+        
+        ClipperOffset co;
+        co.addPath(p, ClipperLib::jtSquare, ClipperLib::etClosedPolygon);
+        co.Execute(solution, 10);
+        
+        ClipperLib::Path sol = solution[0];
+        for (ClipperLib::IntPoint pt : sol)
+            result.emplace_back(pt.x, pt.y);
+    }
 
     void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list, const double scale) {
         cv::Mat hsv_img;
@@ -205,7 +220,9 @@ namespace student {
         cv::Mat contours_img = img_in.clone();
         cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
 
-        //cv::imshow("Obstacles", contours_img);
+        cv::namedWindow("Obstacles", cv::WINDOW_NORMAL);
+        cv::imshow("Obstacles", contours_img);
+        cv::waitKey(0);
     }
 
     bool getGate(const cv::Mat &img_in, Polygon &gate, const double scale) {
