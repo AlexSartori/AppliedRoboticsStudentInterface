@@ -7,7 +7,7 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/core/types.hpp"
 
-#include "libs/clipper/clipper.hpp"
+#include "../libs/clipper/clipper.hpp"
 
 #include <stdlib.h>
 #include <iostream>

@@ -169,20 +169,22 @@ namespace student {
         //cv::imshow("Victims", contours_img);
     }
     
-    ClipperLib::Path expandPolygon(std::vector<cv::Point> polygon, Polygon result) {
+    void expandPolygon(std::vector<cv::Point> polygon, Polygon* result) {
+        printf("Expand poly\n");
         ClipperLib::Path p;
         ClipperLib::Paths solution;
         
         for (cv::Point pt : polygon)
             p << ClipperLib::IntPoint(pt.x, pt.y);
         
-        ClipperOffset co;
-        co.addPath(p, ClipperLib::jtSquare, ClipperLib::etClosedPolygon);
+        ClipperLib::ClipperOffset co;
+        co.AddPath(p, ClipperLib::jtSquare, ClipperLib::etClosedPolygon);
         co.Execute(solution, 10);
         
-        ClipperLib::Path sol = solution[0];
-        for (ClipperLib::IntPoint pt : sol)
-            result.emplace_back(pt.x, pt.y);
+        for (ClipperLib::Path sol : solution)
+            for (ClipperLib::IntPoint pt : sol) {
+                (*result).emplace_back(pt.X, pt.Y);
+            }
     }
 
     void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list, const double scale) {
@@ -208,13 +210,17 @@ namespace student {
         for (int i = 0; i < contours.size(); i++) {
             std::vector <cv::Point> approx_curve;
             cv::approxPolyDP(contours[i], approx_curve, 7, true);
-            approx_contours.push_back(approx_curve);
 
             Polygon obstacle;
-            for (const auto &pt: approx_curve) {
-                obstacle.emplace_back(pt.x / scale, pt.y / scale);
-            }
+            expandPolygon(approx_curve, &obstacle);
             obstacle_list.push_back(obstacle);
+            
+            std::vector <cv::Point> cv_curve;
+            for (Point pt : obstacle) {
+                cv_curve.emplace_back(pt.x, pt.y);
+                printf("%f %f\n", pt.x, pt.y);
+            }
+            approx_contours.push_back(cv_curve);
         }
 
         cv::Mat contours_img = img_in.clone();
