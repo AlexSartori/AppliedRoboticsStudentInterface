@@ -18,6 +18,8 @@
 
 #include <boost/graph/adjacency_list.hpp>
 
+#include "../../libs/clipper/clipper.hpp"
+
 #include <stdlib.h>
 #include <iostream>
 #include <algorithm>

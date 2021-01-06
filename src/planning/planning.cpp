@@ -15,6 +15,23 @@ namespace student {
         }
         return newPoly;
     }
+    
+    void expandPolygon(Polygon polygon, Polygon* result) {
+    printf("expandPolygon\n");
+        ClipperLib::Path p;
+        ClipperLib::Paths solution;
+        
+        for (Point pt : polygon)
+            p << ClipperLib::IntPoint(pt.x*OBJECTS_SCALE_FACTOR, pt.y*OBJECTS_SCALE_FACTOR);
+        
+        ClipperLib::ClipperOffset co;
+        co.AddPath(p, ClipperLib::jtSquare, ClipperLib::etClosedPolygon);
+        co.Execute(solution, 5*OBJECTS_SCALE_FACTOR);
+        
+        for (ClipperLib::Path sol : solution)
+            for (ClipperLib::IntPoint pt : sol)
+                (*result).emplace_back(pt.X/OBJECTS_SCALE_FACTOR, pt.Y/OBJECTS_SCALE_FACTOR);
+    }
 
     polygon_type_def convertPolygonToBoost(const Polygon &input) {
         polygon_type_def poly;
@@ -50,14 +67,14 @@ namespace student {
         cv::circle(tmp, cv::Point(currPosition.x, currPosition.y), 5, cv::Scalar(255, 0, 0), CV_FILLED, 8, 0);
         cv::circle(tmp, cv::Point(targetPoint.x, targetPoint.y), 5, cv::Scalar(0, 255, 0), CV_FILLED, 8, 0);
 
-        auto pathImg = "/root/workspace/Graph.png";
+        //auto pathImg = "/root/workspace/Graph.png";
         //cv::imwrite(pathImg, tmp);
         //std::cout << "img saved at "<<pathImg << std::endl;
 
-        /*
+        
         cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
         cv::imshow("Path Voronoi", tmp);
-        cv::waitKey(0);*/
+        cv::waitKey(0);
     }
 
     bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
@@ -77,7 +94,12 @@ namespace student {
         targets.push_back(gate);
 
         // an array of all the possible objects present in the arena
-        std::vector <Polygon> allObjects(obstacle_list);
+        std::vector <Polygon> allObjects;
+        for (Polygon p : obstacle_list) {
+            //Polygon p2;
+            expandPolygon(p, &p);
+            allObjects.push_back(p);
+        }
         for (auto victim : victim_list)
             allObjects.push_back(victim.second);
         allObjects.push_back(gate);
