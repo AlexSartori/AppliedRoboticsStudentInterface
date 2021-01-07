@@ -38,7 +38,7 @@ namespace student {
 
     int extrapolateVictimNumber(cv::Mat &roi) {
         // filter the image
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5), cv::Point(-1, -1));
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3), cv::Point(-1, -1));
         cv::dilate(roi, roi, kernel);
         cv::erode(roi, roi, kernel);
 
