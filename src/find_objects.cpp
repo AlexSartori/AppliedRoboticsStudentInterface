@@ -38,7 +38,7 @@ namespace student {
 
     int extrapolateVictimNumber(cv::Mat &roi) {
         // filter the image
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(4, 4), cv::Point(-1, -1));
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5), cv::Point(-1, -1));
         cv::dilate(roi, roi, kernel);
         cv::erode(roi, roi, kernel);
 
@@ -90,7 +90,7 @@ namespace student {
             cv::warpAffine(roi, roi, r, roi.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
         }
 
-        for (int degree = 0; degree < 360; degree += 180) { // rotate the image
+        for (int degree = 0; degree < 360; degree += 90) { // rotate the image
             for (int i = -10; i <= 10; i++) {
                 cv::Mat tmp;
                 r = cv::getRotationMatrix2D(center, degree + i, 1.0);
