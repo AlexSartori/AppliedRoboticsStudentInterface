@@ -60,14 +60,16 @@ namespace student {
     }
 
     Polygon createPolygonAroundPoint(const Point &p) {
-        //TODO: change polygons using more edges
-
         const int length = 20;
         Polygon poly;
         poly.emplace_back(p.x + length, p.y - length);
+        poly.emplace_back(p.x + length, p.y);
         poly.emplace_back(p.x + length, p.y + length);
+        poly.emplace_back(p.x, p.y + length);
         poly.emplace_back(p.x - length, p.y + length);
+        poly.emplace_back(p.x - length, p.y);
         poly.emplace_back(p.x - length, p.y - length);
+        poly.emplace_back(p.x, p.y - length);
 
         return poly;
     }
