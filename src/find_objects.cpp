@@ -195,7 +195,7 @@ namespace student {
 
             Polygon obstacle;
             for (cv::Point pt : approx_curve)
-                obstacle.emplace_back(pt.x, pt.y);
+                obstacle.emplace_back(pt.x / scale, pt.y / scale);
             
             obstacle_list.push_back(obstacle);
             
