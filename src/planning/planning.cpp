@@ -1,18 +1,21 @@
 #include "planning.hpp"
 
 namespace student {
+    //! Comparator function to sort victims based on their number
     bool victimSortFn (const std::pair<int, Polygon>& struct1, const std::pair<int, Polygon>& struct2) {
         return (struct1.first < struct2.first);
     }
 
     Polygon scaleUpPolygon(const Polygon &poly) {
         Polygon newPoly;
+        
         for (int i = 0; i < poly.size(); i++) {
             Point p(poly[i]);
             p.x *= OBJECTS_SCALE_FACTOR;
             p.y *= OBJECTS_SCALE_FACTOR;
             newPoly.push_back(p);
         }
+        
         return newPoly;
     }
     
@@ -235,33 +238,31 @@ namespace student {
     class ValidityChecker : public ob::StateValidityChecker
     {
     public:
-        ValidityChecker(const ob::SpaceInformationPtr& si) :
-            ob::StateValidityChecker(si) {}
+        std::vector<Polygon> obstacles;
+        ValidityChecker(const ob::SpaceInformationPtr& si, std::vector<Polygon> toAvoid) :
+            ob::StateValidityChecker(si)
+        {
+            obstacles = toAvoid;
+        }
 
         // Returns whether the given state's position overlaps the
         // circular obstacle
         bool isValid(const ob::State* state) const
         {
-            return this->clearance(state) > 0.0;
-        }
-
-        // Returns the distance from the given state's position to the
-        // boundary of the circular obstacle.
-        double clearance(const ob::State* state) const
-        {
-            // We know we're working with a RealVectorStateSpace in this
-            // example, so we downcast state into the specific type.
-            const ob::RealVectorStateSpace::StateType* state2D =
-                state->as<ob::RealVectorStateSpace::StateType>();
-
             // Extract the robot's (x,y) position from its state
+            const ob::RealVectorStateSpace::StateType* state2D = state->as<ob::RealVectorStateSpace::StateType>();
             double x = state2D->values[0];
             double y = state2D->values[1];
-
-            // Distance formula between two points, offset by the circle's
-            // radius
-            return sqrt((x-0.5)*(x-0.5) + (y-0.5)*(y-0.5)) - 0.25;
+            
+            point_type_def boostPoint(x, y);
+            for (Polygon polygon : obstacles) {
+                polygon_type_def boostPoly = convertPolygonToBoost(polygon);
+                if (boost::geometry::within(boostPoint, boostPoly))
+                    return false;
+            }
+            return true;
         }
+
     };
 
     // Used for A* search.  Computes the heuristic distance from vertex v1 to the goal
@@ -285,7 +286,7 @@ namespace student {
         ob::SpaceInformationPtr si(new ob::SpaceInformation(space));
 
         // Set the object used to check which states in the space are valid
-        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si)));
+        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid)));
 
         si->setup();
 
