@@ -53,7 +53,7 @@ namespace student {
 
     Polygon scaleUpPolygon(const Polygon &poly);
 
-    bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
+    bool elaboratePath(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                           const std::vector <std::pair<int, Polygon>> &victim_list,
                           const Polygon &gate, const Point &robot, std::vector<Point> &pointPath);
 

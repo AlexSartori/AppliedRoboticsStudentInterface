@@ -261,16 +261,19 @@ namespace student {
         Point robot(x * OBJECTS_SCALE_FACTOR, y * OBJECTS_SCALE_FACTOR);
 
         std::vector<Point> pointPath;
-        bool result = elaborateVoronoi(newBorders, newObstacles, newVictims, newGate, robot, pointPath);
+        bool result = elaboratePath(newBorders, newObstacles, newVictims, newGate, robot, pointPath);
+        
+        if (result) {
+            std::cout << "Found a path with " << pointPath.size() << " points" << std::endl;
 
-        std::cout << "Found a path with " << pointPath.size() << " points" << std::endl;
+            DubinsMultipoint* dp = new DubinsMultipoint(30, theta, 50.);
+            dp->getShortestPath(pointPath, path);
 
-        DubinsMultipoint* dp = new DubinsMultipoint(30, theta, 50.);
-        dp->getShortestPath(pointPath, path);
-
-        for (auto p : path.points){
-            std::cout << p.s << " - x:" << p.x << " - y:" << p.y << " - theta:" << p.theta<< " - k:" << p.kappa << std::endl;
-        }
+            for (auto p : path.points)
+                std::cout << p.s << " - x:" << p.x << " - y:" << p.y << " - theta:" << p.theta << " - k:" << p.kappa << std::endl;
+        } else {
+            std::cerr << "[ERR] Could not find a valid path" << std::endl;
+        }       
 
         return result;
     }

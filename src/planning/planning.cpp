@@ -1,11 +1,19 @@
 #include "planning.hpp"
 
 namespace student {
-    //! Comparator function to sort victims based on their number
+
+
+    /*!
+     * Comparator function to sort victims based on their number.
+     */
     bool victimSortFn (const std::pair<int, Polygon>& struct1, const std::pair<int, Polygon>& struct2) {
         return (struct1.first < struct2.first);
     }
 
+
+    /*!
+     * Scale up the given polygon to improve precision when working with integer coordinates.
+     */
     Polygon scaleUpPolygon(const Polygon &poly) {
         Polygon newPoly;
         
@@ -19,11 +27,16 @@ namespace student {
         return newPoly;
     }
     
+
+    /*!
+     * Expand (offset) a given polygon.
+     * @param polygon The polygon to be expanded
+     */
     void expandPolygon(Polygon &polygon) {
         ClipperLib::Path p;
         ClipperLib::Paths solution;
 
-        for (Point pt : polygon){
+        for (Point pt : polygon) {
             p << ClipperLib::IntPoint(pt.x * OBJECTS_SCALE_FACTOR, pt.y * OBJECTS_SCALE_FACTOR);
         }
         
@@ -37,6 +50,11 @@ namespace student {
                 polygon.emplace_back(pt.X / OBJECTS_SCALE_FACTOR, pt.Y / OBJECTS_SCALE_FACTOR);
     }
 
+
+    /*!
+     * Merge polygons that overlap.
+     * @param polygons A vector of polygons to be merged where they overlap
+     */
     void joinOverlappingPolygons(std::vector<Polygon> &polygons) {
         for(int i = 0; i < polygons.size(); i++) {
             for(int j = 0; j < polygons.size(); j++) {
@@ -71,6 +89,11 @@ namespace student {
         }
     }
 
+
+    /*!
+     * Convert a std::vector<Point> objects to a boost::geometry::polygon.
+     * @param input The polygon to be converted
+     */
     polygon_type_def convertPolygonToBoost(const Polygon &input) {
         polygon_type_def poly;
         point_type_def firstPoint;
@@ -84,14 +107,18 @@ namespace student {
 
         return poly;
     }
+    
 
+    /*!
+     * Plot the Voronoi graph overlayed on the map to an image.
+     */
     void drawGraphImage(const UndirectedGraph &graph, const std::vector<bp::voronoi_vertex<double>> &vertices,
                         const Point &currPosition, const Point &targetPoint, const std::vector <Polygon> &obstacles) {
-        // let's draw the result
         cv::Mat tmp(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
         int thickness = 2;
         int lineType = cv::LINE_8;
 
+        // Draw graph edges
         std::pair <edge_iterator, edge_iterator> edgePair;
         for (edgePair = edges(graph); edgePair.first != edgePair.second; ++edgePair.first) {
             auto a = vertices[source(*edgePair.first, graph)];
@@ -102,6 +129,7 @@ namespace student {
             cv::line(tmp, cvstart, cvend, cv::Scalar(0, 0, 0), thickness, lineType);
         }
 
+        // Draw obstacles
         for (auto &obst : obstacles){
             for (int i = 1; i <= obst.size(); i++){
                 cv::Point cvstart = cv::Point(obst[i % obst.size()].x, obst[i % obst.size()].y);
@@ -110,6 +138,7 @@ namespace student {
             }
         }
 
+        // Plot current path segment
         cv::circle(tmp, cv::Point(currPosition.x, currPosition.y), 5, cv::Scalar(255, 0, 0), CV_FILLED, 8, 0);
         cv::circle(tmp, cv::Point(targetPoint.x, targetPoint.y), 5, cv::Scalar(0, 255, 0), CV_FILLED, 8, 0);
 
@@ -117,25 +146,34 @@ namespace student {
         cv::imwrite(pathImg, tmp);
         //std::cout << "img saved at "<<pathImg << std::endl;
 
-        
         //cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
         //cv::imshow("Path Voronoi", tmp);
         //cv::waitKey(0);
     }
+    
 
-    bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
-                          const std::vector <std::pair<int, Polygon>> &victim_list,
-                          const Polygon &gate, const Point &robot, std::vector<Point> &pointPath) {
+    /*!
+     * Elaborate a path that touches all victims in order and avoids obstacles.
+     * @param borders The borders of the map, to be avoided
+     * @param obstacle_list The vector of obstacle polygons to be avoided
+     * @param vistim_list The vector of victims to be rescued
+     * @param gate The polygon in which the path has to end
+     * @param robot The current position of the robot
+     * @param pointPath A vector of points where the result will be stored
+     * @return `true` if a path was found, `false` otherwise
+     */
+    bool elaboratePath(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
+                       const std::vector <std::pair<int, Polygon>> &victim_list,
+                       const Polygon &gate, const Point &robot, std::vector<Point> &pointPath) {
 
         Point currPosition(robot);
         Polygon prevTarget;
         pointPath.emplace_back(currPosition.x / OBJECTS_SCALE_FACTOR, currPosition.y / OBJECTS_SCALE_FACTOR);
 
+        // Create a vector of targets sorted by priority
         std::vector<Polygon> targets;
-        std::vector <std::pair<int, Polygon>> sortedVictims(victim_list);
-
-        // create a target array sorted by priority
-        std::sort (sortedVictims.begin(), sortedVictims.end(), victimSortFn);
+        std::vector<std::pair<int, Polygon>> sortedVictims(victim_list);
+        std::sort(sortedVictims.begin(), sortedVictims.end(), victimSortFn);
         for(auto &v : sortedVictims)
             targets.push_back(v.second);
         targets.push_back(gate);
@@ -144,7 +182,6 @@ namespace student {
         std::vector <Polygon> allObjects;
         for (Polygon p : obstacle_list)
             allObjects.push_back(p);
-
         for (auto victim : victim_list)
             allObjects.push_back(victim.second);
         allObjects.push_back(gate);
@@ -156,24 +193,23 @@ namespace student {
             if (prevTarget.size() > 0)
                 toAvoid.erase(std::remove(toAvoid.begin(), toAvoid.end(), prevTarget));
 
-            for (int i = 0; i < toAvoid.size(); i++) {
+            for (int i = 0; i < toAvoid.size(); i++)
                 expandPolygon(toAvoid[i]);
-            }
-            // merge together overlapping obstacles
+            
+            // Merge together overlapping obstacles
             joinOverlappingPolygons(toAvoid);
 
+            // Use the centroid of the target as the destination point
             polygon_type_def poly = convertPolygonToBoost(targetPoly);
-
-            // get the centroid of the targetPoly to use as the destination point
             point_type_def target_center;
             bg::centroid(poly, target_center);
-
             Point targetPoint(target_center.x(), target_center.y());
 
             std::cout << "CurrentPoint: (" << currPosition.x << ", " << currPosition.y << ")" << std::endl;
             std::cout << "TargetPoint: (" << targetPoint.x << ", " << targetPoint.y << ")" << std::endl;
 
             bool res = rrt_star_planning(borders, toAvoid, currPosition, targetPoint, pointPath);
+            
             if(!res)
                 return false;
 
@@ -183,7 +219,8 @@ namespace student {
         return true;
     }
 
-    bool voronoi_planning(const Polygon &borders, const std::vector <Polygon> &toAvoid,
+
+    /*bool voronoi_planning(const Polygon &borders, const std::vector <Polygon> &toAvoid,
                           const Point &currPosition, const Point &targetPosition,
                           std::vector<Point> &pointPath) {
         auto outPair = getVoronoiGraph(toAvoid, borders, currPosition, targetPosition);
@@ -233,27 +270,29 @@ namespace student {
             v = v1;
         }
         return true;
-    }
+    }*/
 
-    class ValidityChecker : public ob::StateValidityChecker
-    {
+
+    /*!
+     * Container class for the `isValid` method needed by the RRT* planning
+     */
+    class ValidityChecker : public ob::StateValidityChecker {
     public:
         std::vector<Polygon> obstacles;
         ValidityChecker(const ob::SpaceInformationPtr& si, std::vector<Polygon> toAvoid) :
-            ob::StateValidityChecker(si)
-        {
+            ob::StateValidityChecker(si) {
             obstacles = toAvoid;
         }
 
-        // Returns whether the given state's position overlaps the
-        // circular obstacle
-        bool isValid(const ob::State* state) const
-        {
-            // Extract the robot's (x,y) position from its state
+        /*!
+         * Verify that the given point is outside of any obstacle polygon.
+         */
+        bool isValid(const ob::State* state) const {
             const ob::RealVectorStateSpace::StateType* state2D = state->as<ob::RealVectorStateSpace::StateType>();
             double x = state2D->values[0];
             double y = state2D->values[1];
             
+            // Check that the given point doesn't intersect with any obstacle
             point_type_def boostPoint(x, y);
             for (Polygon polygon : obstacles) {
                 polygon_type_def boostPoly = convertPolygonToBoost(polygon);
@@ -265,6 +304,7 @@ namespace student {
 
     };
 
+
     // Used for A* search.  Computes the heuristic distance from vertex v1 to the goal
     ob::Cost distanceHeuristic(ob::PlannerData::Graph::Vertex v1,
                                const ob::GoalState* goal,
@@ -275,6 +315,10 @@ namespace student {
         return ob::Cost(obj->costToGo(plannerDataVertices[v1]->getState(), goal));
     }
 
+
+    /*!
+     * Use the RRT* algorithm to find a valid path between the current position and the destination point.
+     */
     bool rrt_star_planning(const Polygon &borders, const std::vector <Polygon> &toAvoid,
                            const Point &currPosition, const Point &targetPosition,
                            std::vector<Point> &pointPath) {
@@ -282,12 +326,9 @@ namespace student {
 
         space->as<ob::RealVectorStateSpace>()->setBounds(0.0, 800.0);
 
-        // Construct a space information instance for this state space
+        // Construct a space information instance and provide the implemented ValidityChecker
         ob::SpaceInformationPtr si(new ob::SpaceInformation(space));
-
-        // Set the object used to check which states in the space are valid
         si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid)));
-
         si->setup();
 
         ob::ScopedState<> start(space);
@@ -300,30 +341,24 @@ namespace student {
 
         // Create a problem instance
         ob::ProblemDefinitionPtr pdef(new ob::ProblemDefinition(si));
-
-        // Set the start and goal states
         pdef->setStartAndGoalStates(start, goal);
 
         ob::OptimizationObjectivePtr obj(new ob::PathLengthOptimizationObjective(si));
         obj->setCostThreshold(ob::Cost(1.51));
         pdef->setOptimizationObjective(obj);
 
-        // Construct our optimizing planner using the RRTstar algorithm.
+        // Construct the optimizing planner using the RRTstar algorithm.
         ob::PlannerPtr optimizingPlanner(new og::RRTstar(si));
-
-        // Set the problem instance for our planner to solve
         optimizingPlanner->setProblemDefinition(pdef);
         optimizingPlanner->setup();
 
-        // attempt to solve the planning problem within one second of
-        // planning time
+        // Try to solve the planning problem within one second
         ob::PlannerStatus solved = optimizingPlanner->solve(1.0);
         if (!solved)
             return false;
 
+        // Get the solution
         ob::PlannerData data(si);
-
-        // Get solution path.
         optimizingPlanner->getPlannerData(data);
 
         ob::PathLengthOptimizationObjective opt(si);
@@ -333,11 +368,7 @@ namespace student {
         ob::PlannerData::Graph::Type& graph = data.toBoostGraph();
 
         // Now we can apply any Boost.Graph algorithm.  How about A*!
-
-        // create a predecessor map to store A* results in
         boost::vector_property_map<ob::PlannerData::Graph::Vertex> prev(data.numVertices());
-
-        // Retrieve a property map with the PlannerDataVertex object pointers for quick lookup
         boost::property_map<ob::PlannerData::Graph::Type, vertex_type_t>::type vertices = get(vertex_type_t(), graph);
 
         // Run A* search over our planner data
@@ -357,9 +388,8 @@ namespace student {
         // Extracting the path
         og::PathGeometric path(si);
         for (ob::PlannerData::Graph::Vertex pos = boost::vertex(data.getGoalIndex(0), graph);
-             prev[pos] != pos;
-             pos = prev[pos])
-        {
+                 prev[pos] != pos;
+                 pos = prev[pos]) {
             path.append(vertices[pos]->getState());
         }
         path.reverse();
@@ -369,7 +399,6 @@ namespace student {
         for(auto &s : path.getStates()) {
             double x = s->as<ob::RealVectorStateSpace::StateType>()->values[0];
             double y = s->as<ob::RealVectorStateSpace::StateType>()->values[1];
-
             pointPath.push_back(Point(x / OBJECTS_SCALE_FACTOR, y / OBJECTS_SCALE_FACTOR));
         }
 
