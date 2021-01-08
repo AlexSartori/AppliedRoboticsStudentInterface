@@ -26,7 +26,7 @@ namespace student {
         
         ClipperLib::ClipperOffset co;
         co.AddPath(p, ClipperLib::jtSquare, ClipperLib::etClosedPolygon);
-        co.Execute(solution, 15 * OBJECTS_SCALE_FACTOR);
+        co.Execute(solution, 30 * OBJECTS_SCALE_FACTOR);
 
         polygon.clear();
         for (ClipperLib::Path sol : solution)
@@ -169,56 +169,209 @@ namespace student {
             std::cout << "CurrentPoint: (" << currPosition.x << ", " << currPosition.y << ")" << std::endl;
             std::cout << "TargetPoint: (" << targetPoint.x << ", " << targetPoint.y << ")" << std::endl;
 
-            auto outPair = getVoronoiGraph(toAvoid, borders, currPosition, targetPoint);
-            auto graph = outPair.first;
-            auto vertices = outPair.second;
-
-            auto firstIdx = findVertexIndex(vertices, currPosition.x, currPosition.y);
-            auto first = vertex(firstIdx, graph);
-            auto goalIdx = findVertexIndex(vertices, targetPoint.x, targetPoint.y);
-            auto goal = vertex(goalIdx, graph);
-
-            std::vector<int> d(num_vertices(graph));
-            std::vector <vertex_descriptor> p(num_vertices(graph));
-
-            drawGraphImage(graph, vertices, currPosition, targetPoint, toAvoid);
-
-            // use Dijkstra to compute a distance vector from the start point
-            boost::dijkstra_shortest_paths(graph, first, boost::predecessor_map(&p[0]).distance_map(&d[0]));
-
-            std::cout << "dijkstra distance: " << d[goal] << std::endl;
-
-            if(d[goal] == INT_MAX) {
-                std::cerr << "[ERR] Unreachable destination!" << std::endl;
+            bool res = rrt_star_planning(borders, toAvoid, currPosition, targetPoint, pointPath);
+            if(!res)
                 return false;
-            }
-
-            std::vector <vertex_descriptor> tmp_path;
-            vertex_descriptor current = goal;
-
-            // using the predecessor array compute the shortest path
-            while (current != first) {
-                tmp_path.push_back(current);
-                current = p[current];
-            }
-            tmp_path.push_back(first);
-
-            // save the points composing the final path
-            std::vector<vertex_descriptor>::reverse_iterator it = tmp_path.rbegin();
-            vertex_descriptor v = *it;
-            it++;
-            while (it != tmp_path.rend()) {
-                vertex_descriptor v1 = *it;
-                pointPath.push_back(Point(vertices[v].x() / OBJECTS_SCALE_FACTOR,
-                                          vertices[v].y() / OBJECTS_SCALE_FACTOR));
-
-                ++it;
-                v = v1;
-            }
 
             currPosition = targetPoint;
             prevTarget = targetPoly;
         }
+        return true;
+    }
+
+    bool voronoi_planning(const Polygon &borders, const std::vector <Polygon> &toAvoid,
+                          const Point &currPosition, const Point &targetPosition,
+                          std::vector<Point> &pointPath) {
+        auto outPair = getVoronoiGraph(toAvoid, borders, currPosition, targetPosition);
+        auto graph = outPair.first;
+        auto vertices = outPair.second;
+
+        auto firstIdx = findVertexIndex(vertices, currPosition.x, currPosition.y);
+        auto first = vertex(firstIdx, graph);
+        auto goalIdx = findVertexIndex(vertices, targetPosition.x, targetPosition.y);
+        auto goal = vertex(goalIdx, graph);
+
+        std::vector<int> d(num_vertices(graph));
+        std::vector <vertex_descriptor> p(num_vertices(graph));
+
+        drawGraphImage(graph, vertices, currPosition, targetPosition, toAvoid);
+
+        // use Dijkstra to compute a distance vector from the start point
+        boost::dijkstra_shortest_paths(graph, first, boost::predecessor_map(&p[0]).distance_map(&d[0]));
+
+        std::cout << "dijkstra distance: " << d[goal] << std::endl;
+
+        if(d[goal] == INT_MAX) {
+            std::cerr << "[ERR] Unreachable destination!" << std::endl;
+            return false;
+        }
+
+        std::vector <vertex_descriptor> tmp_path;
+        vertex_descriptor current = goal;
+
+        // using the predecessor array compute the shortest path
+        while (current != first) {
+            tmp_path.push_back(current);
+            current = p[current];
+        }
+        tmp_path.push_back(first);
+
+        // save the points composing the final path
+        std::vector<vertex_descriptor>::reverse_iterator it = tmp_path.rbegin();
+        vertex_descriptor v = *it;
+        it++;
+        while (it != tmp_path.rend()) {
+            vertex_descriptor v1 = *it;
+            pointPath.push_back(Point(vertices[v].x() / OBJECTS_SCALE_FACTOR,
+                                      vertices[v].y() / OBJECTS_SCALE_FACTOR));
+
+            ++it;
+            v = v1;
+        }
+        return true;
+    }
+
+    class ValidityChecker : public ob::StateValidityChecker
+    {
+    public:
+        ValidityChecker(const ob::SpaceInformationPtr& si) :
+            ob::StateValidityChecker(si) {}
+
+        // Returns whether the given state's position overlaps the
+        // circular obstacle
+        bool isValid(const ob::State* state) const
+        {
+            return this->clearance(state) > 0.0;
+        }
+
+        // Returns the distance from the given state's position to the
+        // boundary of the circular obstacle.
+        double clearance(const ob::State* state) const
+        {
+            // We know we're working with a RealVectorStateSpace in this
+            // example, so we downcast state into the specific type.
+            const ob::RealVectorStateSpace::StateType* state2D =
+                state->as<ob::RealVectorStateSpace::StateType>();
+
+            // Extract the robot's (x,y) position from its state
+            double x = state2D->values[0];
+            double y = state2D->values[1];
+
+            // Distance formula between two points, offset by the circle's
+            // radius
+            return sqrt((x-0.5)*(x-0.5) + (y-0.5)*(y-0.5)) - 0.25;
+        }
+    };
+
+    // Used for A* search.  Computes the heuristic distance from vertex v1 to the goal
+    ob::Cost distanceHeuristic(ob::PlannerData::Graph::Vertex v1,
+                               const ob::GoalState* goal,
+                               const ob::OptimizationObjective* obj,
+                               const boost::property_map<ob::PlannerData::Graph::Type,
+                                       vertex_type_t>::type& plannerDataVertices)
+    {
+        return ob::Cost(obj->costToGo(plannerDataVertices[v1]->getState(), goal));
+    }
+
+    bool rrt_star_planning(const Polygon &borders, const std::vector <Polygon> &toAvoid,
+                           const Point &currPosition, const Point &targetPosition,
+                           std::vector<Point> &pointPath) {
+        ob::StateSpacePtr space(new ob::RealVectorStateSpace(2));
+
+        space->as<ob::RealVectorStateSpace>()->setBounds(0.0, 800.0);
+
+        // Construct a space information instance for this state space
+        ob::SpaceInformationPtr si(new ob::SpaceInformation(space));
+
+        // Set the object used to check which states in the space are valid
+        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si)));
+
+        si->setup();
+
+        ob::ScopedState<> start(space);
+        start->as<ob::RealVectorStateSpace::StateType>()->values[0] = currPosition.x;
+        start->as<ob::RealVectorStateSpace::StateType>()->values[1] = currPosition.y;
+
+        ob::ScopedState<> goal(space);
+        goal->as<ob::RealVectorStateSpace::StateType>()->values[0] = currPosition.x;
+        goal->as<ob::RealVectorStateSpace::StateType>()->values[1] = currPosition.y;
+
+        // Create a problem instance
+        ob::ProblemDefinitionPtr pdef(new ob::ProblemDefinition(si));
+
+        // Set the start and goal states
+        pdef->setStartAndGoalStates(start, goal);
+
+        ob::OptimizationObjectivePtr obj(new ob::PathLengthOptimizationObjective(si));
+        obj->setCostThreshold(ob::Cost(1.51));
+        pdef->setOptimizationObjective(obj);
+
+        // Construct our optimizing planner using the RRTstar algorithm.
+        ob::PlannerPtr optimizingPlanner(new og::RRTstar(si));
+
+        // Set the problem instance for our planner to solve
+        optimizingPlanner->setProblemDefinition(pdef);
+        optimizingPlanner->setup();
+
+        // attempt to solve the planning problem within one second of
+        // planning time
+        ob::PlannerStatus solved = optimizingPlanner->solve(10.0);
+        if (!solved)
+            return false;
+
+        ob::PlannerData data(si);
+
+        // Get solution path.
+        optimizingPlanner->getPlannerData(data);
+
+        ob::PathLengthOptimizationObjective opt(si);
+        data.computeEdgeWeights(opt);
+
+        // Getting a handle to the raw Boost.Graph data
+        ob::PlannerData::Graph::Type& graph = data.toBoostGraph();
+
+        // Now we can apply any Boost.Graph algorithm.  How about A*!
+
+        // create a predecessor map to store A* results in
+        boost::vector_property_map<ob::PlannerData::Graph::Vertex> prev(data.numVertices());
+
+        // Retrieve a property map with the PlannerDataVertex object pointers for quick lookup
+        boost::property_map<ob::PlannerData::Graph::Type, vertex_type_t>::type vertices = get(vertex_type_t(), graph);
+
+        // Run A* search over our planner data
+        ob::GoalState goals(si);
+        goals.setState(data.getGoalVertex(0).getState());
+        ob::PlannerData::Graph::Vertex startv = boost::vertex(data.getStartIndex(0), graph);
+        boost::astar_visitor<boost::null_visitor> dummy_visitor;
+        boost::astar_search(graph, startv,
+                            [&goals, &opt, &vertices](ob::PlannerData::Graph::Vertex v1) { return distanceHeuristic(v1, &goals, &opt, vertices); },
+                            boost::predecessor_map(prev).
+                                    distance_compare([&opt](ob::Cost c1, ob::Cost c2) { return opt.isCostBetterThan(c1, c2); }).
+                                    distance_combine([&opt](ob::Cost c1, ob::Cost c2) { return opt.combineCosts(c1, c2); }).
+                                    distance_inf(opt.infiniteCost()).
+                                    distance_zero(opt.identityCost()).
+                                    visitor(dummy_visitor));
+
+        // Extracting the path
+        og::PathGeometric path(si);
+        for (ob::PlannerData::Graph::Vertex pos = boost::vertex(data.getGoalIndex(0), graph);
+             prev[pos] != pos;
+             pos = prev[pos])
+        {
+            path.append(vertices[pos]->getState());
+        }
+        path.append(vertices[startv]->getState());
+        path.reverse();
+
+        std::cout << "num states: "<< path.getStates().size() << std::endl;
+
+        for(auto &s : path.getStates()) {
+            double x = s->as<ob::RealVectorStateSpace::StateType>()->values[0];
+            double y = s->as<ob::RealVectorStateSpace::StateType>()->values[1];
+
+            pointPath.push_back(Point(x / OBJECTS_SCALE_FACTOR, y / OBJECTS_SCALE_FACTOR));
+        }
+
         return true;
     }
 }

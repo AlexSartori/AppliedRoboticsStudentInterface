@@ -17,8 +17,18 @@
 #include <boost/geometry/geometries/polygon.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/astar_search.hpp>
 
 #include "../../libs/clipper/clipper.hpp"
+
+#include <ompl/geometric/planners/rrt/RRTstar.h>
+#include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/base/PlannerDataGraph.h>
+#include <ompl/base/goals/GoalState.h>
+#include <ompl/base/ProblemDefinition.h>
+#include <ompl/base/OptimizationObjective.h>
+#include <ompl/base/objectives/PathLengthOptimizationObjective.h>
+#include <ompl/geometric/planners/rrt/RRTstar.h>
 
 #include <stdlib.h>
 #include <iostream>
@@ -35,6 +45,8 @@ inline bool operator==(const Point &a, const Point &b)
 
 namespace student {
     namespace bg = boost::geometry;
+    namespace ob = ompl::base;
+    namespace og = ompl::geometric;
 
     typedef bg::model::d2::point_xy<double> point_type_def;
     typedef bg::model::polygon <point_type_def> polygon_type_def;
@@ -44,6 +56,10 @@ namespace student {
     bool elaborateVoronoi(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                           const std::vector <std::pair<int, Polygon>> &victim_list,
                           const Polygon &gate, const Point &robot, std::vector<Point> &pointPath);
+
+    bool rrt_star_planning(const Polygon &borders, const std::vector <Polygon> &toAvoid,
+                           const Point &currPosition, const Point &targetPosition,
+                           std::vector<Point> &pointPath);
 } // namespace student
 
 #endif

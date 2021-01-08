@@ -7,12 +7,19 @@ add_compile_options(-std=c++11)
 find_package(OpenCV REQUIRED )
 find_package(project_interface REQUIRED )
 
+## Add OMPL lib
+find_package(OMPL REQUIRED)
+
+
 ## Specify additional locations of header files
 include_directories(
  include 
  ${OpenCV_INCLUDE_DIRS}
  ${project_interface_INCLUDE_DIRS}
+ ${OMPL_INCLUDE_DIRS}
 )
+
+link_libraries(${OMPL_LIBRARY_DIRS})
 
 ## Add executable
 add_executable(calibrate
@@ -37,12 +44,14 @@ add_library(student SHARED
   libs/boost/graph/graph_traits.hpp
   libs/boost/graph/adjacency_list.hpp
   libs/boost/graph/dijkstra_shortest_paths.hpp
+  libs/boost/graph/astar_search.hpp
   libs/clipper/clipper.cpp
   libs/clipper/clipper.hpp
 )
 
 target_link_libraries(student
   ${OpenCV_LIBRARIES}
+  ${OMPL_LIBRARIES}
 )
 
 target_link_libraries(calibrate
