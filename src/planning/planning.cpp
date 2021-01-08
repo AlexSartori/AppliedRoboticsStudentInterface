@@ -126,6 +126,7 @@ namespace student {
 
         Point currPosition(robot);
         Polygon prevTarget;
+        pointPath.emplace_back(currPosition.x / OBJECTS_SCALE_FACTOR, currPosition.y / OBJECTS_SCALE_FACTOR);
 
         std::vector<Polygon> targets;
         std::vector <std::pair<int, Polygon>> sortedVictims(victim_list);
@@ -293,8 +294,8 @@ namespace student {
         start->as<ob::RealVectorStateSpace::StateType>()->values[1] = currPosition.y;
 
         ob::ScopedState<> goal(space);
-        goal->as<ob::RealVectorStateSpace::StateType>()->values[0] = currPosition.x;
-        goal->as<ob::RealVectorStateSpace::StateType>()->values[1] = currPosition.y;
+        goal->as<ob::RealVectorStateSpace::StateType>()->values[0] = targetPosition.x;
+        goal->as<ob::RealVectorStateSpace::StateType>()->values[1] = targetPosition.y;
 
         // Create a problem instance
         ob::ProblemDefinitionPtr pdef(new ob::ProblemDefinition(si));
@@ -315,7 +316,7 @@ namespace student {
 
         // attempt to solve the planning problem within one second of
         // planning time
-        ob::PlannerStatus solved = optimizingPlanner->solve(10.0);
+        ob::PlannerStatus solved = optimizingPlanner->solve(1.0);
         if (!solved)
             return false;
 
@@ -360,7 +361,6 @@ namespace student {
         {
             path.append(vertices[pos]->getState());
         }
-        path.append(vertices[startv]->getState());
         path.reverse();
 
         std::cout << "num states: "<< path.getStates().size() << std::endl;
