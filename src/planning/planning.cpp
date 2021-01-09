@@ -299,6 +299,9 @@ namespace student {
                 if (boost::geometry::within(boostPoint, boostPoly))
                     return false;
             }
+
+            //TODO: check that the robot is not touching a border
+
             return true;
         }
 
@@ -324,7 +327,16 @@ namespace student {
                            std::vector<Point> &pointPath) {
         ob::StateSpacePtr space(new ob::RealVectorStateSpace(2));
 
-        space->as<ob::RealVectorStateSpace>()->setBounds(0.0, 800.0);
+        float maxX = 0, maxY = 0;
+        for(auto p : borders) {
+            maxX = std::max(maxX, p.x);
+            maxY = std::max(maxY, p.y);
+        }
+        ob::RealVectorBounds spaceBounds(2);
+        spaceBounds.setLow(0.0);
+        spaceBounds.setHigh(0, maxX);
+        spaceBounds.setHigh(1, maxY);
+        space->as<ob::RealVectorStateSpace>()->setBounds(spaceBounds);
 
         // Construct a space information instance and provide the implemented ValidityChecker
         ob::SpaceInformationPtr si(new ob::SpaceInformation(space));
