@@ -107,7 +107,6 @@ namespace student {
         }
 
         int max = std::max_element(results_conf.begin(), results_conf.end()) - results_conf.begin();
-        std::cout << "recognised " << max << std::endl;
         return max;
     }
 
@@ -166,7 +165,11 @@ namespace student {
             cv::putText(contours_img, std::to_string(victim.first),
                         position, cv::FONT_HERSHEY_DUPLEX, 1.0, CV_RGB(0, 0, 0), 2);
         }
-        //cv::imshow("Victims", contours_img);
+
+        if(readBooleanConfig("debug_victims")) {
+            cv::imshow("Victims", contours_img);
+            cv::waitKey(0);
+        }
     }
     
     void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list, const double scale) {
@@ -204,15 +207,15 @@ namespace student {
                 cv_curve.emplace_back(pt.x, pt.y);
             approx_contours.push_back(cv_curve);
         }
-        
-        /*
-        cv::Mat contours_img = img_in.clone();
-        cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
 
-        cv::namedWindow("Obstacles", cv::WINDOW_NORMAL);
-        cv::imshow("Obstacles", contours_img);
-        cv::waitKey(0);
-        */
+        if(readBooleanConfig("debug_obstacles")) {
+            cv::Mat contours_img = img_in.clone();
+            cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+
+            cv::namedWindow("Obstacles", cv::WINDOW_NORMAL);
+            cv::imshow("Obstacles", contours_img);
+            cv::waitKey(0);
+        }
     }
 
     bool getGate(const cv::Mat &img_in, Polygon &gate, const double scale) {
@@ -250,7 +253,10 @@ namespace student {
         cv::Mat contours_img = img_in.clone();
         cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
 
-        //cv::imshow("Gate", contours_img);
+        if(readBooleanConfig("debug_gate")) {
+            cv::imshow("Gate", contours_img);
+            cv::waitKey(0);
+        }
 
         return found;
     }

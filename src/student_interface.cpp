@@ -164,7 +164,11 @@ namespace student {
         getObstacles(img_in, obstacle_list, scale);
         bool res = getGate(img_in, gate, scale);
 
-        cv::waitKey(100);
+        std::cout << "READY TO RUN!" << std::endl;
+        std::cout << "Recognised digits: ";
+        for(auto & v : victim_list)
+            std::cout << v.first << " ";
+        std::cout << std::endl;
 
         return res;
     }
@@ -182,7 +186,6 @@ namespace student {
         // Find contours
         std::vector <std::vector<cv::Point>> contours;
         cv::findContours(robot_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-        std::cout << "Detected " << contours.size() << " contour(s)" << std::endl;
 
         // Check it is a triangle
         std::vector <cv::Point> approx_curve;
@@ -226,16 +229,18 @@ namespace student {
         x /= scale;
         y /= scale;
 
-        // Draw robot
-        /*cv::Mat contours_img = img_in.clone();
-        cv::polylines(contours_img, approx_curve, true, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
-        cv::circle(contours_img, cv::Point(p3.x, p3.y), 5, cv::Scalar(0, 0, 255), CV_FILLED, 8, 0);
-        cv::circle(contours_img, cv::Point(x, y), 5, cv::Scalar(0, 0, 255), CV_FILLED, 8, 0);
-        cv::imshow("Robot", contours_img);
-        while (cv::waitKey(100) != 'q') ;
-        cv::destroyWindow("Robot");*/
+        if(readBooleanConfig("debug_robot")) {
+            // Draw robot
+            cv::Mat contours_img = img_in.clone();
+            cv::polylines(contours_img, approx_curve, true, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+            cv::circle(contours_img, cv::Point(p3.x, p3.y), 5, cv::Scalar(0, 0, 255), CV_FILLED, 8, 0);
+            cv::circle(contours_img, cv::Point(x, y), 5, cv::Scalar(0, 0, 255), CV_FILLED, 8, 0);
+            cv::imshow("Robot", contours_img);
+            while (cv::waitKey(100) != 'q') ;
+            cv::destroyWindow("Robot");
 
-        std::cout << "Found robot at x=" << x << ", y=" << y << ", theta=" << theta << std::endl;
+            std::cout << "Found robot at x=" << x << ", y=" << y << ", theta=" << theta << std::endl;
+        }
         return true;
     }
 

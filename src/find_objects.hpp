@@ -2,6 +2,7 @@
 #define FIND_OBJECTS_H
 
 #include "utils.hpp"
+#include "config.hpp"
 
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
