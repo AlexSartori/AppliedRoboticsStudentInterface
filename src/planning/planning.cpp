@@ -111,49 +111,6 @@ namespace student {
     
 
     /*!
-     * Plot the Voronoi graph overlayed on the map to an image.
-     */
-    void drawGraphImage(const UndirectedGraph &graph, const std::vector<bp::voronoi_vertex<double>> &vertices,
-                        const Point &currPosition, const Point &targetPoint, const std::vector <Polygon> &obstacles) {
-        cv::Mat tmp(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
-        int thickness = 2;
-        int lineType = cv::LINE_8;
-
-        // Draw graph edges
-        std::pair <edge_iterator, edge_iterator> edgePair;
-        for (edgePair = edges(graph); edgePair.first != edgePair.second; ++edgePair.first) {
-            auto a = vertices[source(*edgePair.first, graph)];
-            auto b = vertices[target(*edgePair.first, graph)];
-
-            cv::Point cvstart = cv::Point(a.x(), a.y());
-            cv::Point cvend = cv::Point(b.x(), b.y());
-            cv::line(tmp, cvstart, cvend, cv::Scalar(0, 0, 0), thickness, lineType);
-        }
-
-        // Draw obstacles
-        for (auto &obst : obstacles){
-            for (int i = 1; i <= obst.size(); i++){
-                cv::Point cvstart = cv::Point(obst[i % obst.size()].x, obst[i % obst.size()].y);
-                cv::Point cvend = cv::Point(obst[i-1].x, obst[i-1].y);
-                cv::line(tmp, cvstart, cvend, cv::Scalar(0, 0, 255), thickness, lineType);
-            }
-        }
-
-        // Plot current path segment
-        cv::circle(tmp, cv::Point(currPosition.x, currPosition.y), 5, cv::Scalar(255, 0, 0), CV_FILLED, 8, 0);
-        cv::circle(tmp, cv::Point(targetPoint.x, targetPoint.y), 5, cv::Scalar(0, 255, 0), CV_FILLED, 8, 0);
-
-        auto pathImg = "/root/workspace/Graph.png";
-        //cv::imwrite(pathImg, tmp);
-        //std::cout << "img saved at "<<pathImg << std::endl;
-
-        //cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
-        //cv::imshow("Path Voronoi", tmp);
-        //cv::waitKey(0);
-    }
-    
-
-    /*!
      * Elaborate a path that touches all victims in order and avoids obstacles.
      * @param borders The borders of the map, to be avoided
      * @param obstacle_list The vector of obstacle polygons to be avoided
@@ -219,58 +176,6 @@ namespace student {
         }
         return true;
     }
-
-
-    /*bool voronoi_planning(const Polygon &borders, const std::vector <Polygon> &toAvoid,
-                          const Point &currPosition, const Point &targetPosition,
-                          std::vector<Point> &pointPath) {
-        auto outPair = getVoronoiGraph(toAvoid, borders, currPosition, targetPosition);
-        auto graph = outPair.first;
-        auto vertices = outPair.second;
-
-        auto firstIdx = findVertexIndex(vertices, currPosition.x, currPosition.y);
-        auto first = vertex(firstIdx, graph);
-        auto goalIdx = findVertexIndex(vertices, targetPosition.x, targetPosition.y);
-        auto goal = vertex(goalIdx, graph);
-
-        std::vector<int> d(num_vertices(graph));
-        std::vector <vertex_descriptor> p(num_vertices(graph));
-
-        drawGraphImage(graph, vertices, currPosition, targetPosition, toAvoid);
-
-        // use Dijkstra to compute a distance vector from the start point
-        boost::dijkstra_shortest_paths(graph, first, boost::predecessor_map(&p[0]).distance_map(&d[0]));
-
-        std::cout << "dijkstra distance: " << d[goal] << std::endl;
-
-        if(d[goal] == INT_MAX) {
-            std::cerr << "[ERR] Unreachable destination!" << std::endl;
-            return false;
-        }
-
-        std::vector <vertex_descriptor> tmp_path;
-        vertex_descriptor current = goal;
-
-        // using the predecessor array compute the shortest path
-        while (current != first) {
-            tmp_path.push_back(current);
-            current = p[current];
-        }
-
-        // save the points composing the final path
-        std::vector<vertex_descriptor>::reverse_iterator it = tmp_path.rbegin();
-        vertex_descriptor v = *it;
-        it++;
-        while (it != tmp_path.rend()) {
-            vertex_descriptor v1 = *it;
-            pointPath.push_back(Point(vertices[v].x() / OBJECTS_SCALE_FACTOR,
-                                      vertices[v].y() / OBJECTS_SCALE_FACTOR));
-
-            ++it;
-            v = v1;
-        }
-        return true;
-    }*/
 
 
     /*!
