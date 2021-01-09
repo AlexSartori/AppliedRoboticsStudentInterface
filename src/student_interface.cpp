@@ -121,8 +121,6 @@ namespace student {
 
     bool extrinsicCalib(const cv::Mat &img_in, std::vector <cv::Point3f> object_points, const cv::Mat &camera_matrix,
                         cv::Mat &rvec, cv::Mat &tvec, const std::string &config_folder) {
-        std::cout << "Entering extrinsicCalib - student implementation" << std::endl;
-
         // Let the user pick 4 points lying on the same plane
         std::vector <cv::Point2f> image_points;
         image_points = pick4Points(img_in);
@@ -133,7 +131,8 @@ namespace student {
         bool ok = cv::solvePnP(object_points, image_points, camera_matrix, dist_coeffs, rvec, tvec);
 
         if (!ok)
-            std::cerr << "FAILED SOLVE_PNP" << std::endl;
+            std::cerr << "[ERR] Failed cv::solvePnP" << std::endl;
+            
         return ok;
     }
 
@@ -160,9 +159,13 @@ namespace student {
     bool processMap(const cv::Mat &img_in, const double scale, std::vector <Polygon> &obstacle_list,
                     std::vector <std::pair<int, Polygon>> &victim_list, Polygon &gate,
                     const std::string &config_folder) {
+                    
+        int vision_start_time = time(NULL);
         getVictims(img_in, victim_list, scale);
         getObstacles(img_in, obstacle_list, scale);
         bool res = getGate(img_in, gate, scale);
+        int vision_end_time = time(NULL);
+        std::cout << "[TIME] Computer vision phase completed in " << vision_end_time - vision_start_time << "s" << std::endl;
 
         std::cout << "READY TO RUN!" << std::endl;
         std::cout << "Recognised digits: ";
@@ -199,13 +202,12 @@ namespace student {
         }
 
         if (triangle.size() != 3) {
-            std::cerr << "Error while detecting robot:polygon has " << triangle.size() << " vertices." << std::endl;
+            std::cerr << "[ERR] Error while detecting robot: polygon has " << triangle.size() << " vertices." << std::endl;
             return false;
         }
 
         // Calculate baricenter
-        x = 0;
-        y = 0;
+        x = y = 0;
         for (Point p : triangle) {
             x += p.x / 3;
             y += p.y / 3;
@@ -267,18 +269,24 @@ namespace student {
         Point robot(x * OBJECTS_SCALE_FACTOR, y * OBJECTS_SCALE_FACTOR);
 
         std::vector<Point> pointPath;
+        int rrt_start_time = time(NULL);
         bool result = elaboratePath(newBorders, newObstacles, newVictims, newGate, robot, pointPath);
+        int rrt_end_time = time(NULL);
+        std::cout << "[TIME] RRT planning completed in " << rrt_end_time - rrt_start_time << "s" << std::endl;
         
         if (result) {
             std::cout << "Found a path with " << pointPath.size() << " points" << std::endl;
 
             float kmax = readFloatConfig("maximum_curvature");
             int k = readIntConfig("n_dubins_angles");
+            
+            int dubins_start_time = time(NULL);
             DubinsMultipoint* dp = new DubinsMultipoint(k, theta, kmax);
             dp->getShortestPath(pointPath, path);
-
-            for (auto p : path.points)
-                std::cout << p.s << " - x:" << p.x << " - y:" << p.y << " - theta:" << p.theta << " - k:" << p.kappa << std::endl;
+            int dubins_end_time = time(NULL);
+            std::cout << "[TIME] Dubins curves computation completed in " << dubins_end_time - dubins_start_time << "s" << std::endl;
+            
+            std::cout << "[TIME] Total planning time: " << dubins_end_time - rrt_start_time << "s" << std::endl;
         } else {
             std::cerr << "[ERR] Could not find a valid path" << std::endl;
         }       
