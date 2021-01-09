@@ -26,87 +26,70 @@ namespace student {
         
         return newPoly;
     }
-    
-
-    /*!
-     * Expand (offset) a given polygon.
-     * @param polygon The polygon to be expanded
-     */
-    void expandPolygon(Polygon &polygon) {
-        ClipperLib::Path p;
-        ClipperLib::Paths solution;
-
-        for (Point pt : polygon) {
-            p << ClipperLib::IntPoint(pt.x, pt.y);
-        }
-        
-        ClipperLib::ClipperOffset co;
-        co.AddPath(p, ClipperLib::jtSquare, ClipperLib::etClosedPolygon);
-        float offset = readFloatConfig("polygon_offset");
-        co.Execute(solution, offset * OBJECTS_SCALE_FACTOR);
-
-        polygon.clear();
-        for (ClipperLib::Path sol : solution)
-            for (ClipperLib::IntPoint pt : sol)
-                polygon.emplace_back(pt.X, pt.Y);
-    }
 
 
     /*!
-     * Merge polygons that overlap.
-     * @param polygons A vector of polygons to be merged where they overlap
-     */
-    void joinOverlappingPolygons(std::vector<Polygon> &polygons) {
-        for(int i = 0; i < polygons.size(); i++) {
-            for(int j = 0; j < polygons.size(); j++) {
-                if (i == j || polygons[i].size() == 0 || polygons[j].size() == 0)
-                    continue;
-                ClipperLib::Paths subj(1), clip(1), solution;
-
-                for (Point pt : polygons[i])
-                    subj[0] << ClipperLib::IntPoint(pt.x * OBJECTS_SCALE_FACTOR, pt.y * OBJECTS_SCALE_FACTOR);
-                for (Point pt : polygons[j])
-                    clip[0] << ClipperLib::IntPoint(pt.x * OBJECTS_SCALE_FACTOR, pt.y * OBJECTS_SCALE_FACTOR);
-
-                ClipperLib::Clipper c;
-                c.AddPaths(subj, ClipperLib::ptSubject, true);
-                c.AddPaths(clip, ClipperLib::ptClip, true);
-                c.Execute(ClipperLib::ctUnion, solution, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
-
-                if(solution.size() == 1) {
-                    polygons[i].clear();
-                    polygons[j].clear();
-                    for (ClipperLib::IntPoint pt : solution[0])
-                        polygons[i].emplace_back(pt.X / OBJECTS_SCALE_FACTOR, pt.Y / OBJECTS_SCALE_FACTOR);
-                }
-            }
-        }
-
-        for (auto it = polygons.begin(); it != polygons.end();) {
-            if((*it).size() == 0)
-                polygons.erase(it);
-            else
-                ++it;
-        }
-    }
-
-
-    /*!
-     * Convert a std::vector<Point> objects to a boost::geometry::polygon.
+     * Convert a std::vector<Point> object to a boost::geometry::polygon.
      * @param input The polygon to be converted
      */
     polygon_type_def convertPolygonToBoost(const Polygon &input) {
         polygon_type_def poly;
-        point_type_def firstPoint;
 
         for(auto &v : input){
             point_type_def tmpP(v.x, v.y);
             bg::append(poly.outer(), tmpP);
         }
+        
         point_type_def tmpP(input[0].x, input[0].y);
         bg::append(poly.outer(), tmpP);
 
         return poly;
+    }
+
+
+    /*!
+     * Convert a boost::geometry::polygon to a std::vector<Point> object.
+     * @param input The polygon to be converted
+     */
+    Polygon convertBoostToPolygon(const polygon_type_def &input) {
+        Polygon poly;
+
+        for(point_type_def p : input.outer()) {
+            poly.emplace_back(p.x(), p.y());
+        }
+        
+        return poly;
+    }
+    
+    /*!
+     * Expand the given polygons and merge those which overlap.
+     * @param polygons The polygons to buffer
+     */
+    void expandAndMerge(std::vector<Polygon> &polygons) {
+        bg::model::multi_polygon<polygon_type_def> boostPolygons, boostResult;
+        
+        for (Polygon p : polygons) {
+            polygon_type_def poly = convertPolygonToBoost(p);
+            boostPolygons.push_back(poly);
+        }
+        
+        float offset = readFloatConfig("polygon_offset");
+        bg::strategy::buffer::distance_symmetric<int> distanceStrategy(offset * OBJECTS_SCALE_FACTOR);
+        bg::strategy::buffer::side_straight sideStrategy;
+        bg::strategy::buffer::join_round joinStrategy(20); // Points per circle
+        bg::strategy::buffer::end_round endStrategy(20);
+        bg::strategy::buffer::point_circle pointStrategy(20);
+    
+        bg::buffer(
+            boostPolygons, boostResult,
+            distanceStrategy, sideStrategy, joinStrategy, endStrategy, pointStrategy
+        );
+        
+        polygons.clear();
+        for (polygon_type_def p : boostResult) {
+            Polygon poly = convertBoostToPolygon(p);
+            polygons.push_back(poly);
+        }
     }
     
 
@@ -149,11 +132,7 @@ namespace student {
             std::vector <Polygon> toAvoid(allObjects);
             toAvoid.erase(std::remove(toAvoid.begin(), toAvoid.end(), targetPoly));
 
-            for (int i = 0; i < toAvoid.size(); i++)
-                expandPolygon(toAvoid[i]);
-            
-            // Merge together overlapping obstacles
-            joinOverlappingPolygons(toAvoid);
+            expandAndMerge(toAvoid);
 
             // Use the centroid of the target as the destination point
             polygon_type_def poly = convertPolygonToBoost(targetPoly);
