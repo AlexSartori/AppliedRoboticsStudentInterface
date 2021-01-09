@@ -272,6 +272,7 @@ namespace student {
         // Try to solve the planning problem within one second
         float rrt_exec_seconds = readFloatConfig("rrt_exec_seconds");
         ob::PlannerStatus solved = optimizingPlanner->solve(rrt_exec_seconds);
+        
         if (!solved)
             return false;
 
@@ -282,28 +283,22 @@ namespace student {
         ob::PathLengthOptimizationObjective opt(si);
         data.computeEdgeWeights(opt);
 
-        // Getting a handle to the raw Boost.Graph data
+        // Get the graph and extract the shortest path
         ob::PlannerData::Graph::Type& graph = data.toBoostGraph();
-
-        // Now we can apply any Boost.Graph algorithm.  How about A*!
-        boost::vector_property_map<ob::PlannerData::Graph::Vertex> prev(data.numVertices());
         boost::property_map<ob::PlannerData::Graph::Type, vertex_type_t>::type vertices = get(vertex_type_t(), graph);
-
-        // Run A* search over our planner data
-        ob::GoalState goals(si);
-        goals.setState(data.getGoalVertex(0).getState());
         ob::PlannerData::Graph::Vertex startv = boost::vertex(data.getStartIndex(0), graph);
-        boost::astar_visitor<boost::null_visitor> dummy_visitor;
-        boost::astar_search(graph, startv,
-                            [&goals, &opt, &vertices](ob::PlannerData::Graph::Vertex v1) { return distanceHeuristic(v1, &goals, &opt, vertices); },
-                            boost::predecessor_map(prev).
-                                    distance_compare([&opt](ob::Cost c1, ob::Cost c2) { return opt.isCostBetterThan(c1, c2); }).
-                                    distance_combine([&opt](ob::Cost c1, ob::Cost c2) { return opt.combineCosts(c1, c2); }).
-                                    distance_inf(opt.infiniteCost()).
-                                    distance_zero(opt.identityCost()).
-                                    visitor(dummy_visitor));
+        boost::vector_property_map<ob::PlannerData::Graph::Vertex> prev(data.numVertices());
 
-        // Extracting the path
+        boost::dijkstra_shortest_paths(
+                graph,
+                startv,
+                boost::predecessor_map(prev).
+                    distance_compare([&opt](ob::Cost c1, ob::Cost c2) { return opt.isCostBetterThan(c1, c2); }).
+                    distance_combine([&opt](ob::Cost c1, ob::Cost c2) { return opt.combineCosts(c1, c2); }).
+                    distance_inf(opt.infiniteCost()).
+                    distance_zero(opt.identityCost())
+        );
+
         og::PathGeometric path(si);
         for (ob::PlannerData::Graph::Vertex pos = boost::vertex(data.getGoalIndex(0), graph);
                  prev[pos] != pos;
