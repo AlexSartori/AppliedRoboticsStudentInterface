@@ -145,11 +145,9 @@ namespace student {
         allObjects.push_back(gate);
 
         for(auto &targetPoly : targets) {
-            // array of objects that the robot should avoid to go on
+            // Array of objects to avoid
             std::vector <Polygon> toAvoid(allObjects);
             toAvoid.erase(std::remove(toAvoid.begin(), toAvoid.end(), targetPoly));
-            if (prevTarget.size() > 0)
-                toAvoid.erase(std::remove(toAvoid.begin(), toAvoid.end(), prevTarget));
 
             for (int i = 0; i < toAvoid.size(); i++)
                 expandPolygon(toAvoid[i]);
@@ -172,7 +170,7 @@ namespace student {
                 return false;
 
             currPosition = targetPoint;
-            prevTarget = targetPoly;
+            allObjects.erase(std::remove(allObjects.begin(), allObjects.end(), targetPoly));
         }
         return true;
     }
@@ -211,17 +209,6 @@ namespace student {
         }
 
     };
-
-
-    // Used for A* search.  Computes the heuristic distance from vertex v1 to the goal
-    ob::Cost distanceHeuristic(ob::PlannerData::Graph::Vertex v1,
-                               const ob::GoalState* goal,
-                               const ob::OptimizationObjective* obj,
-                               const boost::property_map<ob::PlannerData::Graph::Type,
-                                       vertex_type_t>::type& plannerDataVertices)
-    {
-        return ob::Cost(obj->costToGo(plannerDataVertices[v1]->getState(), goal));
-    }
 
 
     /*!
