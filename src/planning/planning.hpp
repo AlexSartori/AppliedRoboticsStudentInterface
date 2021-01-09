@@ -20,6 +20,7 @@
 #include <boost/graph/astar_search.hpp>
 
 #include "../../libs/clipper/clipper.hpp"
+#include "../config.hpp"
 
 #include <ompl/geometric/planners/rrt/RRTstar.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>

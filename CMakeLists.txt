@@ -39,6 +39,8 @@ add_library(student SHARED
   src/planning/dubins.cpp
   src/planning/dubins_multipoint.cpp
   src/planning/dubins_multipoint.hpp
+  src/config.hpp
+  src/config.cpp
   libs/boost/polygon/voronoi.hpp
   libs/boost/geometry.hpp
   libs/boost/graph/graph_traits.hpp
@@ -47,6 +49,8 @@ add_library(student SHARED
   libs/boost/graph/astar_search.hpp
   libs/clipper/clipper.cpp
   libs/clipper/clipper.hpp
+  libs/configuru/configuru.hpp
+  libs/configuru/configuru.cpp
 )
 
 target_link_libraries(student

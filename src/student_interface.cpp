@@ -15,6 +15,7 @@
 #include "find_objects.hpp"
 #include "planning/planning.hpp"
 #include "planning/dubins_multipoint.hpp"
+#include "config.hpp"
 
 
 namespace student {
@@ -266,7 +267,9 @@ namespace student {
         if (result) {
             std::cout << "Found a path with " << pointPath.size() << " points" << std::endl;
 
-            DubinsMultipoint* dp = new DubinsMultipoint(30, theta, 50.);
+            float kmax = readFloatConfig("maximum_curvature");
+            int k = readIntConfig("n_dubins_angles");
+            DubinsMultipoint* dp = new DubinsMultipoint(k, theta, kmax);
             dp->getShortestPath(pointPath, path);
 
             for (auto p : path.points)

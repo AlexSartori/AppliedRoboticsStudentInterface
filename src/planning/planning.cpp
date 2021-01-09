@@ -37,17 +37,18 @@ namespace student {
         ClipperLib::Paths solution;
 
         for (Point pt : polygon) {
-            p << ClipperLib::IntPoint(pt.x * OBJECTS_SCALE_FACTOR, pt.y * OBJECTS_SCALE_FACTOR);
+            p << ClipperLib::IntPoint(pt.x, pt.y);
         }
         
         ClipperLib::ClipperOffset co;
         co.AddPath(p, ClipperLib::jtSquare, ClipperLib::etClosedPolygon);
-        co.Execute(solution, 30 * OBJECTS_SCALE_FACTOR);
+        float offset = readFloatConfig("polygon_offset");
+        co.Execute(solution, offset * OBJECTS_SCALE_FACTOR);
 
         polygon.clear();
         for (ClipperLib::Path sol : solution)
             for (ClipperLib::IntPoint pt : sol)
-                polygon.emplace_back(pt.X / OBJECTS_SCALE_FACTOR, pt.Y / OBJECTS_SCALE_FACTOR);
+                polygon.emplace_back(pt.X, pt.Y);
     }
 
 
@@ -143,7 +144,7 @@ namespace student {
         cv::circle(tmp, cv::Point(targetPoint.x, targetPoint.y), 5, cv::Scalar(0, 255, 0), CV_FILLED, 8, 0);
 
         auto pathImg = "/root/workspace/Graph.png";
-        cv::imwrite(pathImg, tmp);
+        //cv::imwrite(pathImg, tmp);
         //std::cout << "img saved at "<<pathImg << std::endl;
 
         //cv::namedWindow("Path Voronoi", cv::WINDOW_NORMAL);
@@ -255,7 +256,6 @@ namespace student {
             tmp_path.push_back(current);
             current = p[current];
         }
-        tmp_path.push_back(first);
 
         // save the points composing the final path
         std::vector<vertex_descriptor>::reverse_iterator it = tmp_path.rbegin();
@@ -356,7 +356,7 @@ namespace student {
         pdef->setStartAndGoalStates(start, goal);
 
         ob::OptimizationObjectivePtr obj(new ob::PathLengthOptimizationObjective(si));
-        obj->setCostThreshold(ob::Cost(1.51));
+        obj->setCostThreshold(ob::Cost(0.5 * OBJECTS_SCALE_FACTOR));
         pdef->setOptimizationObjective(obj);
 
         // Construct the optimizing planner using the RRTstar algorithm.
@@ -365,7 +365,8 @@ namespace student {
         optimizingPlanner->setup();
 
         // Try to solve the planning problem within one second
-        ob::PlannerStatus solved = optimizingPlanner->solve(1.0);
+        float rrt_exec_seconds = readFloatConfig("rrt_exec_seconds");
+        ob::PlannerStatus solved = optimizingPlanner->solve(rrt_exec_seconds);
         if (!solved)
             return false;
 
@@ -405,8 +406,6 @@ namespace student {
             path.append(vertices[pos]->getState());
         }
         path.reverse();
-
-        std::cout << "num states: "<< path.getStates().size() << std::endl;
 
         for(auto &s : path.getStates()) {
             double x = s->as<ob::RealVectorStateSpace::StateType>()->values[0];
