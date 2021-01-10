@@ -60,6 +60,20 @@ namespace student {
         
         return poly;
     }
+
+
+    /*!
+     * Calculate the centroid of a given polygon.
+     * @param input The polygon
+     */
+    Point calculateCentroid(const Polygon &input) {
+        polygon_type_def poly = convertPolygonToBoost(input);
+        point_type_def poly_center;
+
+        bg::centroid(poly, poly_center);
+        return Point(poly_center.x(), poly_center.y());
+    }
+
     
     /*!
      * Expand the given polygons and merge those which overlap.
@@ -91,13 +105,84 @@ namespace student {
             polygons.push_back(poly);
         }
     }
+
+
+    /*!
+     * Decide the list of target Polygons that the robot has to reach sorted by priority
+     * @param borders The borders of the map, to be avoided
+     * @param obstacle_list The vector of obstacle polygons to be avoided
+     * @param victim_list The vector of victims to be rescued
+     * @param gate The polygon in which the path has to end
+     * @param currPosition The current position of the robot
+     * @return a vector of target Polygons
+     */
+    std::vector <Polygon> getMissionTargets(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
+                                            const std::vector <std::pair<int, Polygon>> &victim_list,
+                                            const Polygon &gate, const Point &currPosition) {
+        std::vector <Polygon> targets;
+        int mission = readIntConfig("mission");
+        float max_distance = readFloatConfig("miss2_dist_threshold") * OBJECTS_SCALE_FACTOR;
+
+        std::vector <std::pair<int, Polygon>> targetVictims;
+        if (mission == 1) {
+            // We have to reach all the victims
+            targetVictims = victim_list;
+        } else if (mission == 2) {
+            std::vector <Polygon> obstacles(obstacle_list);
+            expandAndMerge(obstacles);
+
+            // Use the centroid of the gate as the destination point
+            Point gatePoint = calculateCentroid(gate);
+
+            std::vector <Point> pointPath;
+            bool res = rrt_star_planning(borders, obstacles, currPosition, gatePoint, pointPath);
+
+            if (res) {
+                // Construct a line composed of the point of the path to the gate
+                linestring_type_def boostPath;
+                for (auto &p : pointPath)
+                    boostPath.push_back(point_type_def(p.x * OBJECTS_SCALE_FACTOR, p.y * OBJECTS_SCALE_FACTOR));
+
+                for (auto &v : victim_list) {
+                    polygon_type_def victim = convertPolygonToBoost(v.second);
+                    // Check the distance between the path and the victim
+                    if (bg::distance(victim, boostPath) <= max_distance) {
+                        // Find the index of the nearest point in the path
+                        int pathIndex = -1;
+                        float minDist = FLT_MAX;
+                        for (int i = 0; i < boostPath.size(); i++) {
+                            float d = bg::distance(victim, boostPath[i]);
+                            if (d < minDist) {
+                                minDist = d;
+                                pathIndex = i;
+                            }
+                        }
+                        // Insert the victim and the index of the nearest point as the priority
+                        targetVictims.push_back({pathIndex, v.second});
+                        std::cout <<"v_id: "<<v.first << " poIndex: " << pathIndex << std::endl;
+                    }
+                }
+            }
+        } else {
+            std::cerr << "[ERR] Wrong mission number!" << std::endl;
+            return targets;
+        }
+
+        // Insert the victims as targets sorted by priority
+        std::sort(targetVictims.begin(), targetVictims.end(), victimSortFn);
+        for (auto &v : targetVictims)
+            targets.push_back(v.second);
+        targets.push_back(gate);
+
+        return targets;
+    }
     
 
     /*!
      * Elaborate a path that touches all victims in order and avoids obstacles.
      * @param borders The borders of the map, to be avoided
      * @param obstacle_list The vector of obstacle polygons to be avoided
-     * @param vistim_list The vector of victims to be rescued
+     * @param victim_list The vector of victims to be rescued
      * @param gate The polygon in which the path has to end
      * @param robot The current position of the robot
      * @param pointPath A vector of points where the result will be stored
@@ -111,15 +196,10 @@ namespace student {
         Polygon prevTarget;
         pointPath.emplace_back(currPosition.x / OBJECTS_SCALE_FACTOR, currPosition.y / OBJECTS_SCALE_FACTOR);
 
-        // Create a vector of targets sorted by priority
-        std::vector<Polygon> targets;
-        std::vector<std::pair<int, Polygon>> sortedVictims(victim_list);
-        std::sort(sortedVictims.begin(), sortedVictims.end(), victimSortFn);
-        for(auto &v : sortedVictims)
-            targets.push_back(v.second);
-        targets.push_back(gate);
+        // Get the targets of this mission
+        std::vector<Polygon> targets = getMissionTargets(borders, obstacle_list, victim_list, gate, currPosition);
 
-        // an array of all the possible objects present in the arena
+        // An array of all the possible objects present in the arena
         std::vector <Polygon> allObjects;
         for (Polygon p : obstacle_list)
             allObjects.push_back(p);
@@ -135,10 +215,7 @@ namespace student {
             expandAndMerge(toAvoid);
 
             // Use the centroid of the target as the destination point
-            polygon_type_def poly = convertPolygonToBoost(targetPoly);
-            point_type_def target_center;
-            bg::centroid(poly, target_center);
-            Point targetPoint(target_center.x(), target_center.y());
+            Point targetPoint = calculateCentroid(targetPoly);
 
             std::cout << "CurrentPoint: (" << currPosition.x << ", " << currPosition.y << ")" << std::endl;
             std::cout << "TargetPoint: (" << targetPoint.x << ", " << targetPoint.y << ")" << std::endl;

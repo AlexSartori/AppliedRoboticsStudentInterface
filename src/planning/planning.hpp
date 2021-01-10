@@ -15,11 +15,11 @@
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/point_xy.hpp>
 #include <boost/geometry/geometries/polygon.hpp>
+#include <boost/geometry/geometries/linestring.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/astar_search.hpp>
 
-#include "../../libs/clipper/clipper.hpp"
 #include "../config.hpp"
 
 #include <ompl/geometric/planners/rrt/RRTstar.h>
@@ -51,6 +51,7 @@ namespace student {
 
     typedef bg::model::d2::point_xy<double> point_type_def;
     typedef bg::model::polygon <point_type_def> polygon_type_def;
+    typedef boost::geometry::model::linestring<point_type_def> linestring_type_def;
 
     bool victimSortFn (const std::pair<int, Polygon>& struct1, const std::pair<int, Polygon>& struct2);
 
@@ -58,9 +59,15 @@ namespace student {
 
     Polygon convertBoostToPolygon(const polygon_type_def &input);
 
+    Point calculateCentroid(const Polygon &input);
+
     void expandAndMerge(std::vector<Polygon> &polygons);
 
     Polygon scaleUpPolygon(const Polygon &poly);
+
+    std::vector <Polygon> getMissionTargets(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
+                                            const std::vector <std::pair<int, Polygon>> &victim_list,
+                                            const Polygon &gate, const Point &currPosition);
 
     bool elaboratePath(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                           const std::vector <std::pair<int, Polygon>> &victim_list,
