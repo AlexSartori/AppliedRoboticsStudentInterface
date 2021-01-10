@@ -18,7 +18,6 @@
 #include <boost/geometry/geometries/linestring.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/astar_search.hpp>
 
 #include "../config.hpp"
 
