@@ -182,8 +182,6 @@ namespace student {
                     return false;
             }
 
-            //TODO: check that the robot is not touching a border
-
             return true;
         }
 

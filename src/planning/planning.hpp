@@ -52,6 +52,14 @@ namespace student {
     typedef bg::model::d2::point_xy<double> point_type_def;
     typedef bg::model::polygon <point_type_def> polygon_type_def;
 
+    bool victimSortFn (const std::pair<int, Polygon>& struct1, const std::pair<int, Polygon>& struct2);
+
+    polygon_type_def convertPolygonToBoost(const Polygon &input);
+
+    Polygon convertBoostToPolygon(const polygon_type_def &input);
+
+    void expandAndMerge(std::vector<Polygon> &polygons);
+
     Polygon scaleUpPolygon(const Polygon &poly);
 
     bool elaboratePath(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
