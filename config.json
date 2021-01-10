@@ -1,7 +1,7 @@
 {
   "maximum_curvature": 30.0,
   "n_dubins_angles": 30,
-  "polygon_offset": 0.085,
+  "polygon_offset": 0.1,
   "rrt_exec_seconds": 1.0,
   "debug_robot": false,
   "debug_victims": false,
