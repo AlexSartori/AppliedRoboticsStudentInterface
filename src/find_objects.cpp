@@ -1,6 +1,12 @@
 #include "find_objects.hpp"
 
 namespace student {
+
+    /*!
+     * Extrapolate the digit from a ROI image as it is
+     * @param roi The image containing the digit
+     * @return A pair composed of the recognised digit and its detection score
+     */
     std::pair<int, int> getDigitFromRoi(cv::Mat &roi) {
         // resize the image to be bigger than the template one
         cv::resize(roi, roi, cv::Size(200, 200));
@@ -36,6 +42,11 @@ namespace student {
         return {maxIdx, maxScore};
     }
 
+    /*!
+     * Extrapolate the digit from a ROI image applying filters and rotations
+     * @param roi The image containing the digit
+     * @return The detected digit
+     */
     int extrapolateVictimNumber(cv::Mat &roi) {
         // filter the image
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3), cv::Point(-1, -1));
@@ -110,6 +121,12 @@ namespace student {
         return max;
     }
 
+    /*!
+     * Detect the victim inside an image
+     * @param img_in The image of the arena
+     * @param victim_list The list where the victims will be returned
+     * @param scale The scale factor for the dimensions
+     */
     void getVictims(const cv::Mat &img_in, std::vector <std::pair<int, Polygon>> &victim_list, const double scale) {
         cv::Mat hsv_img;
         cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
@@ -171,7 +188,13 @@ namespace student {
             cv::waitKey(0);
         }
     }
-    
+
+    /*!
+     * Detect the obstacles inside the arena
+     * @param img_in The image of the arena
+     * @param obstacle_list The list where the obstacles will be returned
+     * @param scale The scale factor for the dimensions
+     */
     void getObstacles(const cv::Mat &img_in, std::vector <Polygon> &obstacle_list, const double scale) {
         cv::Mat hsv_img;
         cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
@@ -218,6 +241,12 @@ namespace student {
         }
     }
 
+    /*!
+     * Detect the gate inside the arena
+     * @param img_in The image of the arena
+     * @param gate The polygon where the gate will be returned
+     * @param scale The scale factor for the dimensions
+     */
     bool getGate(const cv::Mat &img_in, Polygon &gate, const double scale) {
         cv::Mat hsv_img;
         cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);

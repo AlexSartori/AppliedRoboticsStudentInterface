@@ -3,6 +3,12 @@
 using namespace std;
 
 namespace student {
+
+    /*!
+     * Compute the table for the dynamic programming solution of the Dubins multipoint problem
+     * @param path The vector of points that compose the path
+     * @return The resulting table
+     */
     vector <vector<vector < float>>> DubinsMultipoint::computeDynTable(const vector <Point> &path) {
         int k = angles.size();
         vector < vector < vector < float>>> dynTable(path.size() - 1);
@@ -29,6 +35,15 @@ namespace student {
         return dynTable;
     }
 
+    /*!
+     * Recursive function that search the best combination of Dubins curves
+     * @param index Index specifying the current point of the path
+     * @param jAngleIndex Index specifying the angle of the previous point
+     * @param dynTable The table for the dynamic programming
+     * @param tmpValues Table storing the distances of the best solutions
+     * @param tmpIndexes Table storing the index of the angles of the best solutions
+     * @return
+     */
     float DubinsMultipoint::idpLfunction(int index, int jAngleIndex, const vector<vector<vector<float>>> &dynTable, vector<vector<float>> &tmpValues, vector<vector<int>> &tmpIndexes) {
         if(index == tmpIndexes.size())
             return 0.;
@@ -52,6 +67,11 @@ namespace student {
         return tmpValues[index][jAngleIndex];
     }
 
+    /*!
+     * Using dynamic programming it calculates the best combination of Poses to follow the given path
+     * @param path The path to follow
+     * @param resultPath The resulting vector of Poses
+     */
     void DubinsMultipoint::getShortestPath(const vector <Point> &path, Path &resultPath) {
         auto dynTable = computeDynTable(path);
 

@@ -4,6 +4,12 @@ using boost::polygon::voronoi_builder;
 using boost::polygon::voronoi_diagram;
 
 namespace student {
+
+    /*!
+     * Convert a vector of polygons to a vector of Voronoi segments
+     * @param obstaclesAndBorders The given Polygons to be converted
+     * @return The resulting vector of Voronoi segments
+     */
     std::vector <VorSegment> mapPolygonsToVoronoiSegments(const std::vector <Polygon> &obstaclesAndBorders) {
         std::vector <VorSegment> segments;
         for (const Polygon &obstacle : obstaclesAndBorders) {
@@ -24,6 +30,13 @@ namespace student {
         return segments;
     }
 
+    /*!
+     * Find the index of a vertex inside a Voronoi graph
+     * @param vertices The vector of vertices
+     * @param x The x of the point ot find
+     * @param y The y of the point to find
+     * @return The index of the vertex
+     */
     int findVertexIndex(const std::vector <bp::voronoi_vertex<double>> &vertices, const double x, const double y) {
         auto iterator = std::find_if(vertices.begin(), vertices.end(),
                                      [&](bp::voronoi_vertex<double> el) {
@@ -33,12 +46,26 @@ namespace student {
         return idx;
     }
 
+    /*!
+     * Compute the distance between two vertices
+     * @param vertices The vector containing the vertices
+     * @param idx0 The index of the first vertex
+     * @param idx1 The index of the second vertex
+     * @return The distance between the two vertices
+     */
     double computeDistance(const std::vector <bp::voronoi_vertex<double>> &vertices, const int idx0, const int idx1) {
         point_type_def p0(vertices[idx0].x(), vertices[idx0].y());
         point_type_def p1(vertices[idx1].x(), vertices[idx1].y());
         return bg::distance(p0, p1);
     }
 
+    /*!
+     * Check if a given segment across anyone of the given polygons
+     * @param vertex0 The first vertex of the segment
+     * @param vertex1 The second vertex of the segment
+     * @param figures The vector containing the polygons
+     * @return `true` if at least one polygon get crossed by the segment, `false` otherwise
+     */
     bool isSegmentInFigure(const bp::voronoi_vertex<double> &vertex0, const bp::voronoi_vertex<double> &vertex1,
                            const std::vector <Polygon> &figures) {
         point_type_def vPoint0(vertex0.x(), vertex0.y());
@@ -59,6 +86,11 @@ namespace student {
         return false;
     }
 
+    /*!
+     * Create a polygon around a given point
+     * @param p The point
+     * @return The constructed polygon
+     */
     Polygon createPolygonAroundPoint(const Point &p) {
         const int length = 20;
         Polygon poly;
@@ -74,6 +106,12 @@ namespace student {
         return poly;
     }
 
+    /*!
+     * Save the image showing the Voronoi diagram
+     * @param vd The Voronoi diagram
+     * @param start The starting position
+     * @param end The ending position
+     */
     void drawVoronoiImage(const voronoi_diagram<double> &vd, const Point &start, const Point &end) {
         cv::Mat tmp(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
         cv::Mat tmpPrim(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
@@ -105,11 +143,26 @@ namespace student {
         cv::waitKey(0);*/
     }
 
+    /*!
+     * Check if the two given point (a Voronoi vertex and a Boost point) are near enough to state that they are the same point
+     * @param a The Voronoi vertex
+     * @param b The Boost point
+     * @param tolerance The tolerance to use while comparing them
+     * @return `true` if the two points are close enough, `false` otherwise
+     */
     bool isTheSamePoint(const bp::voronoi_vertex<double> &a, const point_type_def & b, const int tolerance) {
         return ((a.x() < b.x() + tolerance && a.x() > b.x() - tolerance) &&
                 (a.y() < b.y() + tolerance && a.y() > b.y() - tolerance));
     }
 
+    /*!
+     * Construct a Voronoi graph from the arena and extract a graph from it
+     * @param obstacles The obstacles of the arena
+     * @param borders The borders of the arena
+     * @param start The starting position of the robot
+     * @param end the ending position of the robot
+     * @return The resulting graph
+     */
     std::pair <UndirectedGraph, std::vector<bp::voronoi_vertex < double>>>
 
     getVoronoiGraph(const std::vector <Polygon> &obstacles, const Polygon &borders, const Point start,

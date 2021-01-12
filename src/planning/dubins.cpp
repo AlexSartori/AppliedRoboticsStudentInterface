@@ -3,6 +3,14 @@
 using namespace std;
 
 namespace student {
+
+    /*!
+     * Calculate the parameters of a standard Dubins problem
+     * @param start The starting position of the robot
+     * @param end The final position of the robot
+     * @param kmax The maximum curvature of the robot
+     * @return The Dubins parameters
+     */
     DubinsParams Dubins::getDubinsParams(const RobotPosition &start, const RobotPosition &end, double kmax) {
         DubinsParams par;
 
@@ -16,6 +24,14 @@ namespace student {
         return par;
     }
 
+    /*!
+     * Solve a Dubins problem
+     * @param start The starting position of the robot
+     * @param end The final position of the robot
+     * @param kmax The maximum curvature of the robot
+     * @param minLength The resulting minimum length of the path
+     * @return A path composed by a vector of Poses
+     */
     vector <Pose> Dubins::solveDubinsProblem(const RobotPosition &start, const RobotPosition &end, double kmax, float &minLength) {
         DubinsParams par = getDubinsParams(start, end, kmax);
 
@@ -55,6 +71,11 @@ namespace student {
         return poses;
     }
 
+    /*!
+     * Sample starting from a Pose to obtain a more complete path
+     * @param pose The initial pose
+     * @return A vector of Poses composing the path
+     */
     vector <Pose> Dubins::sampleDubinsArc(const Pose &pose) {
         vector <Pose> poses;
 
@@ -68,6 +89,13 @@ namespace student {
         return poses;
     }
 
+    /*!
+     * Calculate the three Poses of a Dubins movement
+     * @param start The starting position of the robot
+     * @param res The result of a Dubins movement
+     * @param dubCase The Dubins case that solved the problem
+     * @return A list with the three Poses that form a Dubins movement
+     */
     vector <Pose> Dubins::getArcPoses(const RobotPosition &start, const DubinsResult &res, const DubinsCase &dubCase) {
         vector <Pose> poses;
 
@@ -86,6 +114,11 @@ namespace student {
         return poses;
     }
 
+    /*!
+     * Calculate the final position of the robot after the given circular movement
+     * @param pos The circular movement that the robot has to do
+     * @return The final robot position
+     */
     RobotPosition Dubins::getCircLine(const Pose &pos) {
         RobotPosition p;
         p.x = pos.x + pos.s * sinc(pos.kappa * pos.s / 2.) * cos(pos.theta + pos.kappa * pos.s / 2.);
@@ -95,6 +128,11 @@ namespace student {
         return p;
     }
 
+    /*!
+     * Numerically stable implementation of the sinc function
+     * @param x The parameter of the sinc
+     * @return The result of the sinc operation
+     */
     float sinc(float x) {
         if (abs(x) < 0.002)
             return 1. - pow(x, 2) / 6. * (1. - pow(x, 2) / 20.);
@@ -102,6 +140,11 @@ namespace student {
             return sin(x) / x;
     }
 
+    /*!
+     * Normalize the given angle in the range [0, 2pi)
+     * @param x The angle to be normalized
+     * @return The normalized angle
+     */
     float mod2pi(float x) {
         while (x < 0)
             x += 2 * M_PI;
@@ -110,6 +153,11 @@ namespace student {
         return x;
     }
 
+    /*!
+     * Solve the Dubins problem with a LSL movement
+     * @param p The Dubins parameters
+     * @return The solution of the Dubins problem
+     */
     DubinsResult LSL::compute(const DubinsParams &p) {
         DubinsResult res;
 
@@ -128,6 +176,11 @@ namespace student {
         return res;
     }
 
+    /*!
+     * Solve the Dubins problem with a RSR movement
+     * @param p The Dubins parameters
+     * @return The solution of the Dubins problem
+     */
     DubinsResult RSR::compute(const DubinsParams &p) {
         DubinsResult res;
         float invK = 1. / p.k_max;
@@ -145,6 +198,11 @@ namespace student {
         return res;
     }
 
+    /*!
+     * Solve the Dubins problem with a LSR movement
+     * @param p The Dubins parameters
+     * @return The solution of the Dubins problem
+     */
     DubinsResult LSR::compute(const DubinsParams &p) {
         DubinsResult res;
         float invK = 1. / p.k_max;
@@ -162,6 +220,11 @@ namespace student {
         return res;
     }
 
+    /*!
+     * Solve the Dubins problem with a RSL movement
+     * @param p The Dubins parameters
+     * @return The solution of the Dubins problem
+     */
     DubinsResult RSL::compute(const DubinsParams &p) {
         DubinsResult res;
         float invK = 1. / p.k_max;
@@ -179,6 +242,11 @@ namespace student {
         return res;
     }
 
+    /*!
+     * Solve the Dubins problem with a RLR movement
+     * @param p The Dubins parameters
+     * @return The solution of the Dubins problem
+     */
     DubinsResult RLR::compute(const DubinsParams &p) {
         DubinsResult res;
         float invK = 1. / p.k_max;
@@ -195,6 +263,11 @@ namespace student {
         return res;
     }
 
+    /*!
+     * Solve the Dubins problem with a LRL movement
+     * @param p The Dubins parameters
+     * @return The solution of the Dubins problem
+     */
     DubinsResult LRL::compute(const DubinsParams &p) {
         DubinsResult res;
         float invK = 1. / p.k_max;
