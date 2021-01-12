@@ -1,7 +1,7 @@
 {
   "maximum_curvature": 30.0,
   "n_dubins_angles": 30,
-  "polygon_offset": 0.1,
+  "polygon_offset": 0.13,
   "rrt_exec_seconds": 1.0,
   "mission": 2,
   "miss2_dist_threshold": 0.3,

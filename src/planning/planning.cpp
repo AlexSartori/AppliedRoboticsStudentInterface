@@ -238,9 +238,29 @@ namespace student {
     class ValidityChecker : public ob::StateValidityChecker {
     public:
         std::vector<Polygon> obstacles;
-        ValidityChecker(const ob::SpaceInformationPtr& si, std::vector<Polygon> toAvoid) :
+        Polygon borders;
+        ValidityChecker(const ob::SpaceInformationPtr& si, const std::vector<Polygon> &toAvoid,
+                        const Polygon &arenaBorders) :
             ob::StateValidityChecker(si) {
             obstacles = toAvoid;
+            borders = arenaBorders;
+            float offset = readFloatConfig("polygon_offset") * OBJECTS_SCALE_FACTOR;
+            float maxX = 0, maxY = 0;
+            for(auto p : borders) {
+                maxX = std::max(maxX, p.x);
+                maxY = std::max(maxY, p.y);
+            }
+            // Reduce the borders of the arena
+            for(auto p : borders) {
+                if(p.x == maxX)
+                    p.x -= offset;
+                else
+                    p.x += offset;
+                if(p.y == maxY)
+                    p.y -= offset;
+                else
+                    p.y += offset;
+            }
         }
 
         /*!
@@ -250,18 +270,22 @@ namespace student {
             const ob::RealVectorStateSpace::StateType* state2D = state->as<ob::RealVectorStateSpace::StateType>();
             double x = state2D->values[0];
             double y = state2D->values[1];
+            point_type_def boostPoint(x, y);
+
+            // Check that the given point is inside the clipped gate
+            polygon_type_def boostBorders = convertPolygonToBoost(borders);
+            if (!bg::within(boostPoint, boostBorders))
+                return false;
             
             // Check that the given point doesn't intersect with any obstacle
-            point_type_def boostPoint(x, y);
             for (Polygon polygon : obstacles) {
                 polygon_type_def boostPoly = convertPolygonToBoost(polygon);
-                if (boost::geometry::within(boostPoint, boostPoly))
+                if (bg::within(boostPoint, boostPoly))
                     return false;
             }
 
             return true;
         }
-
     };
 
 
@@ -286,7 +310,7 @@ namespace student {
 
         // Construct a space information instance and provide the implemented ValidityChecker
         ob::SpaceInformationPtr si(new ob::SpaceInformation(space));
-        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid)));
+        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid, borders)));
         si->setup();
 
         ob::ScopedState<> start(space);
