@@ -301,7 +301,9 @@ namespace student {
             cv::circle(tmp, cv::Point(p.x * OBJECTS_SCALE_FACTOR, p.y*OBJECTS_SCALE_FACTOR), 5, cv::Scalar(0, 255, 0), CV_FILLED, 2, 0);
         }
 
-        auto pathImg = "/root/workspace/plan.png";
+        const char *env_root = std::getenv("AR_ROOT");
+        std::string baseFolder(env_root);
+        auto pathImg = baseFolder + "/plan.png";
         cv::imwrite(pathImg, tmp);
 
         std::cout << "img saved at "<<pathImg << std::endl;
