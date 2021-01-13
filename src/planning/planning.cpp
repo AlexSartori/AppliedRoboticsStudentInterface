@@ -108,6 +108,32 @@ namespace student {
 
 
     /*!
+     * Sample from the input path to create a more precise path and convert it into a Boost line object
+     * @param pointPath The path of points that has to be elaborated
+     * @param N_sample The number of subsegments into which split every segment
+     * @return The resulting sampled and converted path
+     */
+    linestring_type_def sampleAndConvertToBoostLine(const std::vector <Point> &pointPath, const int N_sample) {
+        linestring_type_def boostPath;
+
+        for (int i = 1; i < pointPath.size(); i++) {
+            auto step = point_type_def(pointPath[i].x, pointPath[i].y);
+            auto firstPoint = point_type_def(pointPath[i-1].x, pointPath[i-1].y);
+
+            bg::subtract_point(step, firstPoint);
+            bg::divide_value(step, N_sample);
+
+            for(int n = 0; n < N_sample; n++) {
+                bg::add_point(firstPoint, step);
+                boostPath.push_back(point_type_def(firstPoint.x() * OBJECTS_SCALE_FACTOR, firstPoint.y() * OBJECTS_SCALE_FACTOR));
+            }
+        }
+
+        return boostPath;
+    }
+
+
+    /*!
      * Decide the list of target Polygons that the robot has to reach sorted by priority
      * @param borders The borders of the map, to be avoided
      * @param obstacle_list The vector of obstacle polygons to be avoided
@@ -136,12 +162,12 @@ namespace student {
 
             std::vector <Point> pointPath;
             bool res = rrt_star_planning(borders, obstacles, currPosition, gatePoint, pointPath);
+            // Add the missing initial position
+            pointPath.insert(pointPath.begin(), Point(currPosition.x / OBJECTS_SCALE_FACTOR, currPosition.y / OBJECTS_SCALE_FACTOR));
 
             if (res) {
                 // Construct a line composed of the point of the path to the gate
-                linestring_type_def boostPath;
-                for (auto &p : pointPath)
-                    boostPath.push_back(point_type_def(p.x * OBJECTS_SCALE_FACTOR, p.y * OBJECTS_SCALE_FACTOR));
+                auto boostPath = sampleAndConvertToBoostLine(pointPath, 10);
 
                 for (auto &v : victim_list) {
                     polygon_type_def victim = convertPolygonToBoost(v.second);
@@ -159,7 +185,7 @@ namespace student {
                         }
                         // Insert the victim and the index of the nearest point as the priority
                         targetVictims.push_back({pathIndex, v.second});
-                        std::cout <<"v_id: "<<v.first << " poIndex: " << pathIndex << std::endl;
+                        std::cout << "victim_id: " << v.first << " - point_idx: " << pathIndex << std::endl;
                     }
                 }
             }
