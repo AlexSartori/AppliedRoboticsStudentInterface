@@ -267,9 +267,9 @@ namespace student {
     class ValidityChecker : public ob::StateValidityChecker {
     public:
         std::vector<Polygon> obstacles;
-        Polygon borders;
+        Polygon borders, targetPolygon;
         ValidityChecker(const ob::SpaceInformationPtr& si, const std::vector<Polygon> &toAvoid,
-                        const Polygon &arenaBorders) :
+                        const Polygon &arenaBorders, const Point &targetPosition) :
             ob::StateValidityChecker(si) {
             obstacles = toAvoid;
             borders = Polygon(arenaBorders);
@@ -290,6 +290,12 @@ namespace student {
                 else
                     p.y += offset;
             }
+
+            // Set a target polygon around the target point
+            targetPolygon.push_back(Point(targetPosition.x - offset, targetPosition.y - offset));
+            targetPolygon.push_back(Point(targetPosition.x + offset, targetPosition.y - offset));
+            targetPolygon.push_back(Point(targetPosition.x + offset, targetPosition.y + offset));
+            targetPolygon.push_back(Point(targetPosition.x - offset, targetPosition.y + offset));
         }
 
         /*!
@@ -301,9 +307,13 @@ namespace student {
             double y = state2D->values[1];
             point_type_def boostPoint(x, y);
 
+            // Check if we are close to the gate
+            polygon_type_def boostTarget = convertPolygonToBoost(targetPolygon);
+            bool nearTheGate = bg::within(boostPoint, boostTarget);
+
             // Check that the given point is inside the clipped gate
             polygon_type_def boostBorders = convertPolygonToBoost(borders);
-            if (!bg::within(boostPoint, boostBorders))
+            if (!bg::within(boostPoint, boostBorders) && !nearTheGate)
                 return false;
             
             // Check that the given point doesn't intersect with any obstacle
@@ -339,7 +349,7 @@ namespace student {
 
         // Construct a space information instance and provide the implemented ValidityChecker
         ob::SpaceInformationPtr si(new ob::SpaceInformation(space));
-        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid, borders)));
+        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid, borders, targetPosition)));
         si->setup();
 
         ob::ScopedState<> start(space);
