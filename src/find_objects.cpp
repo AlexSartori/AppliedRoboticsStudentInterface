@@ -49,7 +49,7 @@ namespace student {
      */
     int extrapolateVictimNumber(cv::Mat &roi) {
         // filter the image
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3), cv::Point(-1, -1));
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2), cv::Point(-1, -1));
         cv::dilate(roi, roi, kernel);
         cv::erode(roi, roi, kernel);
 
@@ -134,7 +134,7 @@ namespace student {
         cv::Mat victims_img;
         cv::inRange(hsv_img, cv::Scalar(45, 50, 26), cv::Scalar(100, 255, 255), victims_img);
 
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(8, 8), cv::Point(-1, -1));
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2), cv::Point(-1, -1));
         cv::erode(victims_img, victims_img, kernel);
         cv::dilate(victims_img, victims_img, kernel);
 
@@ -144,7 +144,7 @@ namespace student {
         for (auto &contour: contours) {
             std::vector <cv::Point> approx_curve;
             cv::approxPolyDP(contour, approx_curve, 7, true);
-            if (approx_curve.size() >= 6) {
+            if (approx_curve.size() >= 7) {
                 approx_contours.push_back(approx_curve);
                 Polygon victim;
                 for (const auto &pt: approx_curve) {
@@ -173,17 +173,17 @@ namespace student {
             }
         }
 
-        cv::Mat contours_img = img_in.clone();
-        cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
-
-        for (auto &victim: victim_list) {
-            // print in the image the ID of the victims
-            cv::Point position = cv::Point(victim.second[0].x, victim.second[0].y);
-            cv::putText(contours_img, std::to_string(victim.first),
-                        position, cv::FONT_HERSHEY_DUPLEX, 1.0, CV_RGB(0, 0, 0), 2);
-        }
-
         if(readBooleanConfig("debug_victims")) {
+            cv::Mat contours_img = img_in.clone();
+            cv::drawContours(contours_img, approx_contours, -1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+
+            for (auto &victim: victim_list) {
+                // print in the image the ID of the victims
+                cv::Point position = cv::Point(victim.second[0].x * scale, victim.second[0].y * scale);
+                cv::putText(contours_img, std::to_string(victim.first),
+                            position, cv::FONT_HERSHEY_DUPLEX, 1.0, CV_RGB(0, 0, 255), 2);
+            }
+
             cv::imshow("Victims", contours_img);
             cv::waitKey(0);
         }
@@ -205,11 +205,11 @@ namespace student {
         add(obst_img_1, obst_img_2, obst_img);
 
         cv::Mat erosion_img;
-        cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(8, 8), cv::Point(-1, -1));
+        cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2), cv::Point(-1, -1));
         cv::erode(obst_img, erosion_img, erosion_element);
 
         cv::Mat dilation_img;
-        cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10), cv::Point(-1, -1));
+        cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2), cv::Point(-1, -1));
         cv::dilate(erosion_img, dilation_img, dilation_element);
 
         std::vector <std::vector<cv::Point>> contours, approx_contours;
@@ -227,7 +227,7 @@ namespace student {
             
             std::vector <cv::Point> cv_curve;
             for (Point pt : obstacle)
-                cv_curve.emplace_back(pt.x, pt.y);
+                cv_curve.emplace_back(pt.x * scale, pt.y * scale);
             approx_contours.push_back(cv_curve);
         }
 
@@ -252,14 +252,14 @@ namespace student {
         cv::cvtColor(img_in, hsv_img, cv::COLOR_BGR2HSV);
 
         cv::Mat gate_img;
-        cv::inRange(hsv_img, cv::Scalar(45, 50, 0), cv::Scalar(90, 255, 255), gate_img);
+        cv::inRange(hsv_img, cv::Scalar(40, 40, 50), cv::Scalar(75, 255, 255), gate_img);
 
         cv::Mat erosion_img;
-        cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(8, 8), cv::Point(-1, -1));
+        cv::Mat erosion_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2), cv::Point(-1, -1));
         cv::erode(gate_img, erosion_img, erosion_element);
 
         cv::Mat dilation_img;
-        cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10), cv::Point(-1, -1));
+        cv::Mat dilation_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2), cv::Point(-1, -1));
         cv::dilate(erosion_img, dilation_img, dilation_element);
 
         std::vector <std::vector<cv::Point>> contours, approx_contours;
@@ -269,8 +269,8 @@ namespace student {
         for (int i = 0; i < contours.size() && !found; i++) {
             double area = cv::contourArea(contours[i]);
             std::vector <cv::Point> approx_curve;
-            cv::approxPolyDP(contours[i], approx_curve, 8, true);
-            if (approx_curve.size() == 4 && area >= 500) {
+            cv::approxPolyDP(contours[i], approx_curve, 10, true);
+            if (approx_curve.size() >= 4 && approx_curve.size() <= 6 && area >= 500) {
                 approx_contours.push_back(approx_curve);
                 for (const auto &pt: approx_curve) {
                     gate.emplace_back(pt.x / scale, pt.y / scale);
