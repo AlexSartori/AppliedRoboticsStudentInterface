@@ -247,11 +247,14 @@ namespace student {
             std::cout << "TargetPoint: (" << targetPoint.x << ", " << targetPoint.y << ")" << std::endl;
 
             bool res = rrt_star_planning(borders, toAvoid, currPosition, targetPoint, pointPath);
-            
-            if(!res)
-                return false;
 
-            currPosition = targetPoint;
+            if(res) {
+                currPosition = targetPoint;
+            }
+            else {
+                std::cout << "[WARN] skipping one unreachable target!" << std::endl;
+            }
+
             allObjects.erase(std::remove(allObjects.begin(), allObjects.end(), targetPoly));
         }
         return true;
@@ -269,15 +272,15 @@ namespace student {
                         const Polygon &arenaBorders) :
             ob::StateValidityChecker(si) {
             obstacles = toAvoid;
-            borders = arenaBorders;
-            float offset = readFloatConfig("polygon_offset") * OBJECTS_SCALE_FACTOR;
+            borders = Polygon(arenaBorders);
+            const float offset = readFloatConfig("polygon_offset") * OBJECTS_SCALE_FACTOR;
             float maxX = 0, maxY = 0;
-            for(auto p : borders) {
+            for(const auto &p : borders) {
                 maxX = std::max(maxX, p.x);
                 maxY = std::max(maxY, p.y);
             }
             // Reduce the borders of the arena
-            for(auto p : borders) {
+            for(auto &p : borders) {
                 if(p.x == maxX)
                     p.x -= offset;
                 else
@@ -363,8 +366,8 @@ namespace student {
         // Try to solve the planning problem within one second
         float rrt_exec_seconds = readFloatConfig("rrt_exec_seconds");
         ob::PlannerStatus solved = optimizingPlanner->solve(rrt_exec_seconds);
-        
-        if (!solved)
+
+        if (solved != ompl::base::PlannerStatus::StatusType::EXACT_SOLUTION)
             return false;
 
         // Get the solution
