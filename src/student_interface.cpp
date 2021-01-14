@@ -228,9 +228,6 @@ namespace student {
 
         theta = std::atan2(y - p3.y, x - p3.x);
 
-        x /= scale;
-        y /= scale;
-
         if(readBooleanConfig("debug_robot")) {
             // Draw robot
             cv::Mat contours_img = img_in.clone();
@@ -243,6 +240,10 @@ namespace student {
 
             std::cout << "Found robot at x=" << x << ", y=" << y << ", theta=" << theta << std::endl;
         }
+
+        x /= scale;
+        y /= scale;
+        
         return true;
     }
 
