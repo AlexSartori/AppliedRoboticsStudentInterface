@@ -247,6 +247,69 @@ namespace student {
         return true;
     }
 
+    /*!
+     * Save the image of the arena with highlighted the path that the robot wants to take
+     * @param borders the borders of the arena
+     * @param obstacle_list The list of the obstacles
+     * @param victim_list The list of the victims
+     * @param gate The final gate
+     * @param path The path for the robot (the vector of poses)
+     * @param pointPath The points of the graph
+     */
+    void savePlannedImage(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
+                          const std::vector <std::pair<int, Polygon>> &victim_list,
+                          const Polygon &gate, const Path &path, const std::vector<Point> &pointPath) {
+        cv::Mat tmp(600, 800, CV_8UC3, cv::Scalar(255, 255, 255));
+        int thickness = 2;
+        int lineType = cv::LINE_8;
+
+        // draw the borders
+        for(int i = 0; i < borders.size(); i++) {
+            cv::Point cvstart = cv::Point(borders[i].x, borders[i].y);
+            cv::Point cvend = cv::Point(borders[(i+1) % borders.size()].x, borders[(i+1) % borders.size()].y);
+            cv::line(tmp, cvstart, cvend, cv::Scalar(0, 0, 0), thickness, lineType);
+        }
+
+        // draw obstacles
+        for(auto &obs : obstacle_list) {
+            for(int i = 0; i < obs.size(); i++) {
+                cv::Point cvstart = cv::Point(obs[i].x, obs[i].y);
+                cv::Point cvend = cv::Point(obs[(i+1) % obs.size()].x, obs[(i+1) % obs.size()].y);
+                cv::line(tmp, cvstart, cvend, cv::Scalar(0, 0, 255), thickness, lineType);
+            }
+        }
+        // draw victims
+        for(auto &vic : victim_list) {
+            for(int i = 0; i < vic.second.size(); i++) {
+                cv::Point cvstart = cv::Point(vic.second[i].x, vic.second[i].y);
+                cv::Point cvend = cv::Point(vic.second[(i+1) % vic.second.size()].x, vic.second[(i+1) % vic.second.size()].y);
+                cv::line(tmp, cvstart, cvend, cv::Scalar(0, 255, 0), thickness, lineType);
+            }
+        }
+        // draw gate
+        for(int i = 0; i < gate.size(); i++) {
+            cv::Point cvstart = cv::Point(gate[i].x, gate[i].y);
+            cv::Point cvend = cv::Point(gate[(i+1) % gate.size()].x, gate[(i+1) % gate.size()].y);
+            cv::line(tmp, cvstart, cvend, cv::Scalar(0, 255, 0), thickness, lineType);
+        }
+
+        // draw final path points
+        for (auto &p: path.points) {
+            cv::circle(tmp, cv::Point(p.x * OBJECTS_SCALE_FACTOR, p.y*OBJECTS_SCALE_FACTOR), 5, cv::Scalar(255, 0, 0), CV_FILLED, 2, 0);
+        }
+        // draw graph path points
+        for (auto &p: pointPath) {
+            cv::circle(tmp, cv::Point(p.x * OBJECTS_SCALE_FACTOR, p.y*OBJECTS_SCALE_FACTOR), 5, cv::Scalar(0, 255, 0), CV_FILLED, 2, 0);
+        }
+
+        const char *env_root = std::getenv("AR_ROOT");
+        std::string baseFolder(env_root);
+        auto pathImg = baseFolder + "/plan.png";
+        cv::imwrite(pathImg, tmp);
+
+        std::cout << "img saved at "<<pathImg << std::endl;
+    }
+
     bool planPath(const Polygon &borders, const std::vector <Polygon> &obstacle_list,
                   const std::vector <std::pair<int, Polygon>> &victim_list,
                   const Polygon &gate, const float x, const float y, const float theta,
@@ -290,7 +353,10 @@ namespace student {
             std::cout << "[TIME] Total planning time: " << dubins_end_time - rrt_start_time << "s" << std::endl;
         } else {
             std::cerr << "[ERR] Could not find a valid path" << std::endl;
-        }       
+        }
+
+        if(readBooleanConfig("debug_path"))
+            savePlannedImage(newBorders, newObstacles, newVictims, newGate, path, pointPath);
 
         return result;
     }

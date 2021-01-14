@@ -25,6 +25,7 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/base/PlannerDataGraph.h>
 #include <ompl/base/goals/GoalState.h>
+#include <ompl/base/PlannerStatus.h>
 #include <ompl/base/ProblemDefinition.h>
 #include <ompl/base/OptimizationObjective.h>
 #include <ompl/base/objectives/PathLengthOptimizationObjective.h>

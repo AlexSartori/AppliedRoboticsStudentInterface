@@ -247,11 +247,14 @@ namespace student {
             std::cout << "TargetPoint: (" << targetPoint.x << ", " << targetPoint.y << ")" << std::endl;
 
             bool res = rrt_star_planning(borders, toAvoid, currPosition, targetPoint, pointPath);
-            
-            if(!res)
-                return false;
 
-            currPosition = targetPoint;
+            if(res) {
+                currPosition = targetPoint;
+            }
+            else {
+                std::cout << "[WARN] skipping one unreachable target!" << std::endl;
+            }
+
             allObjects.erase(std::remove(allObjects.begin(), allObjects.end(), targetPoly));
         }
         return true;
@@ -264,20 +267,20 @@ namespace student {
     class ValidityChecker : public ob::StateValidityChecker {
     public:
         std::vector<Polygon> obstacles;
-        Polygon borders;
+        Polygon borders, targetPolygon;
         ValidityChecker(const ob::SpaceInformationPtr& si, const std::vector<Polygon> &toAvoid,
-                        const Polygon &arenaBorders) :
+                        const Polygon &arenaBorders, const Point &targetPosition) :
             ob::StateValidityChecker(si) {
             obstacles = toAvoid;
-            borders = arenaBorders;
-            float offset = readFloatConfig("polygon_offset") * OBJECTS_SCALE_FACTOR;
+            borders = Polygon(arenaBorders);
+            const float offset = readFloatConfig("polygon_offset") * OBJECTS_SCALE_FACTOR;
             float maxX = 0, maxY = 0;
-            for(auto p : borders) {
+            for(const auto &p : borders) {
                 maxX = std::max(maxX, p.x);
                 maxY = std::max(maxY, p.y);
             }
             // Reduce the borders of the arena
-            for(auto p : borders) {
+            for(auto &p : borders) {
                 if(p.x == maxX)
                     p.x -= offset;
                 else
@@ -287,6 +290,12 @@ namespace student {
                 else
                     p.y += offset;
             }
+
+            // Set a target polygon around the target point
+            targetPolygon.push_back(Point(targetPosition.x - offset, targetPosition.y - offset));
+            targetPolygon.push_back(Point(targetPosition.x + offset, targetPosition.y - offset));
+            targetPolygon.push_back(Point(targetPosition.x + offset, targetPosition.y + offset));
+            targetPolygon.push_back(Point(targetPosition.x - offset, targetPosition.y + offset));
         }
 
         /*!
@@ -298,9 +307,13 @@ namespace student {
             double y = state2D->values[1];
             point_type_def boostPoint(x, y);
 
+            // Check if we are close to the gate
+            polygon_type_def boostTarget = convertPolygonToBoost(targetPolygon);
+            bool nearTheGate = bg::within(boostPoint, boostTarget);
+
             // Check that the given point is inside the clipped gate
             polygon_type_def boostBorders = convertPolygonToBoost(borders);
-            if (!bg::within(boostPoint, boostBorders))
+            if (!bg::within(boostPoint, boostBorders) && !nearTheGate)
                 return false;
             
             // Check that the given point doesn't intersect with any obstacle
@@ -336,7 +349,7 @@ namespace student {
 
         // Construct a space information instance and provide the implemented ValidityChecker
         ob::SpaceInformationPtr si(new ob::SpaceInformation(space));
-        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid, borders)));
+        si->setStateValidityChecker(ob::StateValidityCheckerPtr(new ValidityChecker(si, toAvoid, borders, targetPosition)));
         si->setup();
 
         ob::ScopedState<> start(space);
@@ -363,8 +376,8 @@ namespace student {
         // Try to solve the planning problem within one second
         float rrt_exec_seconds = readFloatConfig("rrt_exec_seconds");
         ob::PlannerStatus solved = optimizingPlanner->solve(rrt_exec_seconds);
-        
-        if (!solved)
+
+        if (solved != ompl::base::PlannerStatus::StatusType::EXACT_SOLUTION)
             return false;
 
         // Get the solution
